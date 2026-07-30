@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <title>PACS Sawlmendha - खाद प्रबंधन प्रणाली</title>
+
+    <!-- App-jaisa feel: PWA / Add to Home Screen support -->
+    <meta name="theme-color" content="#065f46">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PACS">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='36' fill='%23065f46'/%3E%3Ctext x='50%25' y='58%25' font-size='100' text-anchor='middle' dominant-baseline='middle'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='36' fill='%23065f46'/%3E%3Ctext x='50%25' y='58%25' font-size='100' text-anchor='middle' dominant-baseline='middle'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href='data:application/manifest+json,{"name":"PACS Sawlmendha","short_name":"PACS","start_url":".","display":"standalone","background_color":"%23f1f5f9","theme_color":"%23065f46"}'>
+
+    <!-- Ultra-Light Fast FontAwesome & SheetJS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Super-Fast Custom CSS (No Heavy Tailwind CDN) -->
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; justify-content: space-between; overscroll-behavior-y: contain; }
+        header { background: #065f46; color: white; padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top)); position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+        .hdr-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; items-center: center; }
+        .hdr-title { font-size: 20px; font-weight: 800; display: flex; items-center: center; gap: 8px; }
+        .hdr-sub { font-size: 11px; color: #a7f3d0; margin-top: 2px; }
+        nav { background: #047857; border-top: 1px solid #065f46; overflow-x: auto; display: flex; white-space: nowrap; -ms-overflow-style: none; scrollbar-width: none; }
+        nav::-webkit-scrollbar { display: none; }
+        .nav-cnt { max-width: 1200px; margin: 0 auto; display: flex; width: 100%; }
+        nav button { background: none; border: none; color: #ecfdf5; padding: 12px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 6px; transition: background 0.15s, color 0.15s; }
+        nav button.active { border-color: #facc15; color: #facc15; background: rgba(0,0,0,0.15); }
+        main { max-width: 1200px; margin: 0 auto; width: 100%; padding: 16px; flex-grow: 1; }
+        main > div:not(.hidden) { animation: pageFadeIn 0.22s ease; }
+        @keyframes pageFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .btn, nav button, .tag-close { -webkit-tap-highlight-color: transparent; }
+        .btn:active, nav button:active { transform: scale(0.97); }
+
+        /* App jaisa bottom tab bar - mobile ke liye */
+        @media (max-width: 767px) {
+            body { padding-bottom: 0; }
+            nav {
+                position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+                overflow-x: visible; border-top: 1px solid rgba(0,0,0,0.08);
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.12);
+                padding-bottom: env(safe-area-inset-bottom);
+                background: #ffffff;
+            }
+            .nav-cnt { justify-content: space-around; }
+            nav button {
+                flex: 1; flex-direction: column; gap: 2px; padding: 8px 2px 6px;
+                font-size: 9.5px; font-weight: 700; color: #64748b; border-bottom: none;
+                border-top: 3px solid transparent; line-height: 1.2; white-space: normal; text-align: center;
+            }
+            nav button i { font-size: 17px; }
+            nav button.active { background: none; border-top-color: #059669; color: #059669; }
+            main { padding-bottom: 90px; }
+            footer { display: none; }
+        }
+        .card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .card-hdr { font-size: 16px; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .grid { display: grid; gap: 12px; }
+        @media(min-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr 1fr; }
+            .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+            .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+        }
+        label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; background: #fff; }
+        input:focus, select:focus { border-color: #059669; box-shadow: 0 0 0 2px rgba(5,150,105,0.2); }
+        .btn { padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; justify-content: center; }
+        .btn-emerald { background: #047857; color: white; }
+        .btn-emerald:hover { background: #065f46; }
+        .btn-blue { background: #2563eb; color: white; }
+        .btn-blue:hover { background: #1d4ed8; }
+        .btn-amber { background: #d97706; color: white; }
+        .btn-amber:hover { background: #b45309; }
+        .btn-red { background: #dc2626; color: white; }
+        .btn-red:hover { background: #b91c1c; }
+        .btn-gray { background: #475569; color: white; }
+        .btn-indigo { background: #4f46e5; color: white; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        th, td { border: 1px solid #e2e8f0; padding: 8px 10px; }
+        th { background: #f8fafc; font-weight: 700; color: #334155; }
+        tr:hover { background: #f8fafc; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-amber { background: #fef3c7; color: #92400e; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        footer { background: #1e293b; color: #94a3b8; text-align: center; padding: 12px; font-size: 11px; border-top: 1px solid #334155; }
+        .hidden { display: none !important; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
+        .modal-box { background: white; border-radius: 12px; max-width: 600px; width: 100%; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+        @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="no-print">
+        <div class="hdr-inner">
+            <div>
+                <div class="hdr-title"><i class="fa-solid fa-wheat-awn text-yellow-400"></i> PACS Sawlmendha</div>
+                <div class="hdr-sub">प्राथमिक कृषि साख सहकारी समिति (खाद एवं स्टॉक प्रबंधन)</div>
+            </div>
+            <div style="text-align: right;">
+                <span id="cloudStatus" class="badge badge-amber"><i class="fa-solid fa-cloud-arrow-up"></i> कनेक्ट हो रहा है...</span>
+                <div id="currentDateDisplay" style="font-size: 11px; color: #a7f3d0; margin-top: 4px;"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Menu -->
+    <nav class="no-print">
+        <div class="nav-cnt">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="active"><i class="fa-solid fa-chart-pie"></i> स्टॉक डैशबोर्ड</button>
+            <button onclick="requestAccess('office')" id="tab-office"><i class="fa-solid fa-building-user"></i> कार्यालय एंट्री 🔒</button>
+            <button onclick="requestAccess('warehouse')" id="tab-warehouse"><i class="fa-solid fa-warehouse"></i> गोदाम एंट्री 🔒</button>
+            <button onclick="switchTab('inward')" id="tab-inward"><i class="fa-solid fa-truck-ramp-box"></i> आवक (स्टॉक जोड़ें)</button>
+            <button onclick="switchTab('reports')" id="tab-reports"><i class="fa-solid fa-file-invoice-dollar"></i> रिपोर्ट्स</button>
+            <button onclick="requestAccess('settings')" id="tab-settings"><i class="fa-solid fa-gear"></i> सेटिंग्स व बैकअप 🔒</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+
+        <!-- 1. DASHBOARD PAGE -->
+        <div id="page-dashboard" class="space-y-6">
+            <div class="card" style="border-left: 4px solid #059669;">
+                <div class="card-hdr" style="border:none; margin:0; padding:0;">
+                    <div>
+                        <h2 style="font-size: 18px; color: #0f172a;">स्टॉक स्थिति - PACS Sawlmendha</h2>
+                        <p id="dash_filter_heading_text" style="font-size: 11px; color: #64748b; font-weight: normal;">कार्यालय और गोदाम स्तर पर कुल खाद स्टॉक का विवरण</p>
+                    </div>
+                    <div style="background: #ecfdf5; padding: 8px 12px; border-radius: 8px; border: 1px solid #a7f3d0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <span style="font-size: 11px; font-weight: 700; color: #065f46;">दिनांक अनुसार:</span>
+                        <input type="date" id="dash_from_date" style="width: auto; padding: 4px;">
+                        <input type="date" id="dash_to_date" style="width: auto; padding: 4px;">
+                        <button onclick="applyDashboardDateFilter()" class="btn btn-emerald">फ़िल्टर</button>
+                        <button onclick="clearDashboardDateFilter()" class="btn btn-gray">रीसेट</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card" style="padding:0; overflow:hidden;">
+                    <div style="background: #1e40af; color: white; padding: 10px 14px; font-weight: 700;"><i class="fa-solid fa-building"></i> कार्यालय स्तर पर स्टॉक</div>
+                    <div style="padding: 12px; overflow-x: auto;">
+                        <table id="officeSummaryTable">
+                            <thead><tr><th>खाद</th><th>प्रारम्भिक</th><th>आवक</th><th>वितरण</th><th style="background:#dbeafe;">शेष</th></tr></thead>
+                            <tbody id="officeStockTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card" style="padding:0; overflow:hidden;">
+                    <div style="background: #b45309; color: white; padding: 10px 14px; font-weight: 700;"><i class="fa-solid fa-warehouse"></i> गोदाम स्तर पर स्टॉक</div>
+                    <div style="padding: 12px; overflow-x: auto;">
+                        <table id="warehouseSummaryTable">
+                            <thead><tr><th>खाद</th><th>प्रारम्भिक</th><th>आवक</th><th>वितरण</th><th style="background:#fef3c7;">शेष (गोदाम)</th></tr></thead>
+                            <tbody id="warehouseStockTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. OFFICE ENTRY PAGE -->
+        <div id="page-office" class="hidden space-y-6">
+            <div class="card" style="background:#eff6ff; border-left:4px solid #2563eb;">
+                <div class="card-hdr" style="border:none; margin:0; padding:0;">
+                    <div><h2 style="color:#1e40af;">कार्यालय स्तर पर एंट्री (इश्यू वाउचर)</h2><p style="font-size:11px; color:#3b82f6;">किसान के नाम पर खाद आवंटन दर्ज करें</p></div>
+                    <button onclick="lockModule('office')" class="btn btn-red" style="padding:4px 8px; font-size:11px;"><i class="fa-solid fa-lock"></i> लॉक</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <form id="officeEntryForm" onsubmit="handleOfficeSubmit(event)">
+                    <div class="grid grid-4" style="margin-bottom:14px;">
+                        <div><label>1. दिनांक *</label><input type="date" id="off_entry_date" required style="background:#eff6ff; font-weight:700;"></div>
+                        <div>
+                            <div style="display:flex; justify-between; align-items:center; margin-bottom:4px;">
+                                <label style="margin:0;">2. किसान का नाम *</label>
+                                <button type="button" onclick="autoConvertFarmerName('off_farmer_name')" class="btn btn-blue" style="padding:2px 6px; font-size:10px;">🇮🇳 हिन्दी</button>
+                            </div>
+                            <input type="text" id="off_farmer_name" onblur="autoConvertFarmerName('off_farmer_name')" required placeholder="Ramlal Sharma">
+                        </div>
+                        <div><label>3. वाउचर नंबर *</label><input type="text" id="off_voucher_no" required placeholder="V-101"></div>
+                        <div><label>4. ग्राम का नाम *</label><select id="off_village_select" required></select></div>
+                    </div>
+
+                    <div style="border-top:1px solid #e2e8f0; pt:12px; margin-top:12px;">
+                        <h3 style="font-size:13px; font-weight:700; margin-bottom:8px;">खाद विवरण एवं स्टॉक आवंटन:</h3>
+                        <div style="overflow-x:auto;">
+                            <table>
+                                <thead><tr><th>प्रोडक्ट</th><th style="text-align:center;">उपलब्ध शेष</th><th style="text-align:center;">वितरण मात्रा (बैग)</th></tr></thead>
+                                <tbody id="officeProductAllocationRows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="text-align:right; margin-top:14px;">
+                        <button type="submit" class="btn btn-blue"><i class="fa-solid fa-paper-plane"></i> वाउचर सेव करें (गोदाम में भेजें)</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-hdr">
+                    <span style="color:#1e40af;"><i class="fa-solid fa-list-check"></i> सम्पूर्ण कार्यालय वाउचर रजिस्टर</span>
+                    <span class="badge badge-blue" id="off_voucher_count_tag">कुल: 0</span>
+                </div>
+                <div style="background:#eff6ff; padding:10px; border-radius:8px; margin-bottom:12px;" class="grid grid-3">
+                    <input type="text" id="off_search_input" oninput="filterOfficeVouchers()" placeholder="किसान नाम / वाउचर नंबर से खोजें...">
+                    <input type="date" id="off_search_date" onchange="filterOfficeVouchers()">
+                    <button type="button" onclick="clearOfficeSearch()" class="btn btn-gray"><i class="fa-solid fa-rotate-left"></i> रीसेट</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>दिनांक</th><th>वाउचर</th><th>किसान का नाम</th><th>ग्राम</th><th>स्वीकृत विवरण</th><th style="text-align:center;">कार्रवाई</th></tr></thead>
+                        <tbody id="recentOfficeVouchersBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. WAREHOUSE ENTRY PAGE -->
+        <div id="page-warehouse" class="hidden space-y-6">
+            <div class="card" style="background:#fffbeb; border-left:4px solid #d97706;">
+                <div class="card-hdr" style="border:none; margin:0; padding:0;">
+                    <div><h2 style="color:#b45309;">गोदाम स्तर पर भौतिक डिलीवरी एंट्री</h2><p style="font-size:11px; color:#d97706;">भौतिक खाद की सुपुर्दगी दर्ज करें</p></div>
+                    <button onclick="lockModule('warehouse')" class="btn btn-red" style="padding:4px 8px; font-size:11px;"><i class="fa-solid fa-lock"></i> लॉक</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="background:#fef3c7; padding:12px; border-radius:8px; margin-bottom:12px;" class="space-y-2">
+                    <p style="font-size:11px; font-weight:700; color:#92400e;"><i class="fa-solid fa-magnifying-glass"></i> वाउचर खोजें (किसान नाम / वाउचर नंबर / दिनांक से):</p>
+                    <div class="grid grid-3">
+                        <input type="text" id="wh_search_name" oninput="filterWarehouseVouchers()" placeholder="किसान का नाम या वाउचर नंबर...">
+                        <input type="date" id="wh_search_date" onchange="filterWarehouseVouchers()">
+                        <button type="button" onclick="clearWarehouseSearch()" class="btn btn-gray"><i class="fa-solid fa-rotate-left"></i> रीसेट</button>
+                    </div>
+                </div>
+
+                <form id="warehouseEntryForm" onsubmit="handleWarehouseSubmit(event)">
+                    <div style="margin-bottom:12px;">
+                        <label>किसान का नाम और वाउचर सेलेक्ट करें (हिन्दी में) *</label>
+                        <select id="wh_penciling_vouchers" onchange="populateWarehouseDetails()" required style="background:#fef3c7; font-weight:700;"></select>
+                    </div>
+
+                    <div id="wh_details_box" class="hidden space-y-4" style="border-top:1px solid #e2e8f0; pt:12px;">
+                        <div class="grid grid-4" style="background:#f8fafc; padding:10px; border-radius:6px;">
+                            <div>किसान: <strong id="wh_disp_farmer" style="color:#b45309;">-</strong></div>
+                            <div>वाउचर: <strong id="wh_disp_voucher">-</strong></div>
+                            <div>ग्राम: <strong id="wh_disp_village">-</strong></div>
+                            <div><label style="margin:0;">डिलीवरी दिनांक *</label><input type="date" id="wh_delivery_date" required style="background:#fef3c7; font-weight:700;"></div>
+                        </div>
+
+                        <div style="overflow-x:auto;">
+                            <table>
+                                <thead><tr><th>खाद</th><th style="text-align:center;">स्वीकृत</th><th style="text-align:center;">दिया गया</th><th style="text-align:center;">शेष</th><th style="text-align:center; width:120px;">आज दिया जा रहा</th></tr></thead>
+                                <tbody id="wh_item_table_body"></tbody>
+                            </table>
+                        </div>
+
+                        <div style="text-align:right; margin-top:12px;">
+                            <button type="submit" class="btn btn-amber"><i class="fa-solid fa-truck-drop"></i> डिलीवरी दर्ज करें</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-hdr">
+                    <span style="color:#b45309;"><i class="fa-solid fa-truck-ramp-box"></i> हाल ही में वितरित गोदाम वाउचर</span>
+                    <button onclick="resetWarehouseSection()" class="btn btn-amber" style="font-size:11px; padding:4px 8px;"><i class="fa-solid fa-rotate-left"></i> गोदाम सुपुर्दगियां रीसेट करें 🔒</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>डिलीवरी दिनांक</th><th>वाउचर</th><th>किसान</th><th>ग्राम</th><th>वितरित मात्रा</th><th style="text-align:center;">कार्रवाई</th></tr></thead>
+                        <tbody id="recentWarehouseVouchersBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. INWARD PAGE -->
+        <div id="page-inward" class="hidden space-y-6">
+            <div class="card" style="border-left:4px solid #4f46e5;">
+                <h2>नया स्टॉक आवक (Inward Entry)</h2>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card" style="border-color:#bfdbfe;">
+                    <h3 style="color:#1e40af; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;"><i class="fa-solid fa-building"></i> कार्यालय आवक</h3>
+                    <form onsubmit="handleInwardSubmit(event, 'office')" class="space-y-3">
+                        <label>आवक दिनांक *</label><input type="date" id="inw_off_date" required style="background:#eff6ff;">
+                        <label>खाद चुनें *</label><select id="inw_off_product" required></select>
+                        <label>मात्रा (बैग में) *</label><input type="number" id="inw_off_qty" min="1" required placeholder="100">
+                        <button type="submit" class="btn btn-blue" style="width:100%;">कार्यालय स्टॉक में जोड़ें</button>
+                    </form>
+                </div>
+
+                <div class="card" style="border-color:#fde68a;">
+                    <h3 style="color:#b45309; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;"><i class="fa-solid fa-warehouse"></i> गोदाम आवक</h3>
+                    <form onsubmit="handleInwardSubmit(event, 'warehouse')" class="space-y-3">
+                        <label>आवक दिनांक *</label><input type="date" id="inw_wh_date" required style="background:#fef3c7;">
+                        <label>खाद चुनें *</label><select id="inw_wh_product" required></select>
+                        <label>मात्रा (बैग में) *</label><input type="number" id="inw_wh_qty" min="1" required placeholder="100">
+                        <button type="submit" class="btn btn-amber" style="width:100%;">गोदाम स्टॉक में जोड़ें</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-hdr">
+                    <span style="color:#3730a3;"><i class="fa-solid fa-list-check"></i> तारीख-वार आवक इतिहास (यहाँ से एडिट/डिलीट करें)</span>
+                    <button onclick="clearInwardSection()" class="btn btn-indigo" style="font-size:11px; padding:4px 8px;"><i class="fa-solid fa-trash-can"></i> सभी आवक रिकॉर्ड डिलीट 🔒</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>दिनांक</th><th>स्तर</th><th>खाद</th><th style="text-align:center;">मात्रा</th><th style="text-align:center;">कार्रवाई</th></tr></thead>
+                        <tbody id="inwardHistoryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. REPORTS PAGE -->
+        <div id="page-reports" class="hidden space-y-6">
+            <div class="card no-print" style="border-left:4px solid #059669; display:flex; justify-content:space-between; align-items:center;">
+                <div><h2>सम्पूर्ण रिपोर्ट एवं विवरण</h2></div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="exportToExcel()" class="btn btn-emerald"><i class="fa-solid fa-file-excel"></i> सभी रिपोर्ट्स Excel डाउनलोड</button>
+                    <button onclick="window.print()" class="btn btn-gray"><i class="fa-solid fa-print"></i> प्रिंट / PDF</button>
+                </div>
+            </div>
+
+            <div class="card no-print" style="background:#e2e8f0;">
+                <div class="grid grid-3">
+                    <input type="text" id="rep_search_input" oninput="renderReports()" placeholder="किसान का नाम / वाउचर / ग्राम से खोजें...">
+                    <input type="date" id="rep_search_date" onchange="renderReports()">
+                    <button type="button" onclick="clearReportsSearch()" class="btn btn-gray"><i class="fa-solid fa-rotate-left"></i> रीसेट</button>
+                </div>
+            </div>
+
+            <div class="card" style="padding:0; overflow:hidden;">
+                <div style="background:#991b1b; color:white; padding:10px; font-weight:700;">⚠️ बकाया डिलीवरी रिपोर्ट</div>
+                <div style="padding:12px; overflow-x:auto;"><table id="pendingReportTable"><thead><tr><th>दिनांक</th><th>किसान</th><th>वाउचर</th><th>ग्राम</th><th>खाद</th><th>स्वीकृत</th><th>उठाया</th><th style="color:#dc2626;">बकाया</th></tr></thead><tbody id="pendingReportBody"></tbody></table></div>
+            </div>
+
+            <div class="card" style="padding:0; overflow:hidden;">
+                <div style="background:#3730a3; color:white; padding:10px; font-weight:700;">📥 सम्पूर्ण आवक रिपोर्ट (Inward Register)</div>
+                <div style="padding:12px; overflow-x:auto;"><table id="inwardReportTable"><thead><tr><th>दिनांक</th><th>स्तर</th><th>खाद</th><th style="text-align:center;">मात्रा</th></tr></thead><tbody id="inwardReportBody"></tbody></table></div>
+            </div>
+
+            <div class="card" style="padding:0; overflow:hidden;">
+                <div style="background:#1e293b; color:white; padding:10px; font-weight:700;">📋 सम्पूर्ण जावक/किसान वितरण रजिस्टर (Outward Register)</div>
+                <div style="padding:12px; overflow-x:auto;"><table id="fullReportTable"><thead><tr><th>दिनांक</th><th>वाउचर</th><th>किसान</th><th>ग्राम</th><th>विवरण</th><th>स्थिति</th><th style="text-align:center;" class="no-print">कार्रवाई</th></tr></thead><tbody id="fullReportBody"></tbody></table></div>
+            </div>
+
+            <div class="card" style="padding:0; overflow:hidden;">
+                <div style="background:#065f46; color:white; padding:10px; font-weight:700;">🏡 ग्राम-वार खाद वितरण सारांश</div>
+                <div style="padding:12px; overflow-x:auto;"><table id="villageReportTable"><thead><tr><th>ग्राम</th><th style="text-align:center;">कुल वाउचर</th><th>वितरित खाद विवरण</th></tr></thead><tbody id="villageReportBody"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- 6. SETTINGS PAGE -->
+        <div id="page-settings" class="hidden space-y-6">
+            <div class="card" style="border-left:4px solid #334155; display:flex; justify-between; align-items:center;">
+                <div><h2>एडमिन सेटिंग्स एवं कंट्रोल पैनल</h2></div>
+                <button onclick="lockModule('settings')" class="btn btn-red"><i class="fa-solid fa-lock"></i> सेटिंग्स लॉक</button>
+            </div>
+
+            <!-- BULK EXCEL UPLOAD BOX -->
+            <div style="background: linear-gradient(to right, #1e3a8a, #312e81); color: white; padding: 16px; border-radius: 12px; border: 1px solid #1d4ed8;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1d4ed8; padding-bottom:8px; margin-bottom:8px;">
+                    <h3 style="font-weight:700; font-size:16px;"><i class="fa-solid fa-file-excel text-green-400"></i> Excel फ़ाइल से 2000+ परमिट एक साथ अपलोड करें</h3>
+                    <span class="badge badge-green">बल्क अपलोड</span>
+                </div>
+                <p style="font-size:11px; color:#bfdbfe;">कॉलम नाम: <code>दिनांक | किसान का नाम | वाउचर नंबर | ग्राम का नाम | यूरिया | डीएपी | एनपीके (NPK) | सिंगल सुपर फास्फेट</code></p>
+                <div style="margin-top:10px;">
+                    <label class="btn btn-emerald" style="cursor:pointer; display:inline-flex;">
+                        <i class="fa-solid fa-upload"></i> Excel (.xlsx / .csv) फ़ाइल चुनें और अपलोड करें
+                        <input type="file" id="bulkExcelFileInput" onchange="handleBulkExcelUpload(event)" class="hidden" accept=".xlsx, .xls, .csv">
+                    </label>
+                </div>
+            </div>
+
+            <!-- SECTION-WISE CLEAR BUTTONS IN SETTINGS -->
+            <div class="card" style="background:#fffbeb; border:1px solid #fde68a;">
+                <h3 style="font-size:13px; font-weight:700; color:#92400e; margin-bottom:10px; border-bottom:1px solid #fef3c7; padding-bottom:6px;"><i class="fa-solid fa-trash-arrow-up"></i> खण्ड-वार डेटा साफ़/रीसेट करें (एडमिन पासवर्ड लॉक: 9999)</h3>
+                <div class="grid grid-3">
+                    <button onclick="clearOfficeSection()" class="btn btn-blue" style="text-align:left; justify-between;"><i class="fa-solid fa-building"></i> 1. कार्यालय एंट्रियां डिलीट करें 🔒</button>
+                    <button onclick="resetWarehouseSection()" class="btn btn-amber" style="text-align:left; justify-between;"><i class="fa-solid fa-warehouse"></i> 2. गोदाम सुपुर्दगियां रीसेट करें 🔒</button>
+                    <button onclick="clearInwardSection()" class="btn btn-indigo" style="text-align:left; justify-between;"><i class="fa-solid fa-truck-ramp-box"></i> 3. आवक (Inward) रिकॉर्ड डिलीट 🔒</button>
+                </div>
+            </div>
+
+            <div class="card" style="border-color:#f5d0fe;">
+                <h3 style="color:#7e22ce; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;"><i class="fa-solid fa-plus-circle"></i> नया खाद/प्रोडक्ट जोड़ें</h3>
+                <div class="grid grid-4" style="margin-bottom:10px;">
+                    <input type="text" id="new_prod_name" placeholder="उदा. NPK 12:32:16">
+                    <input type="number" id="new_prod_off_stock" min="0" value="0" placeholder="कार्यालय स्टॉक">
+                    <input type="number" id="new_prod_wh_stock" min="0" value="0" placeholder="गोदाम स्टॉक">
+                    <button onclick="addNewProduct()" class="btn" style="background:#7e22ce; color:white;">प्रोडक्ट जोड़ें</button>
+                </div>
+                <div id="product_list_tags" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+            </div>
+
+            <div class="card" style="border-color:#a7f3d0;">
+                <h3 style="color:#065f46; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;"><i class="fa-solid fa-boxes-packing"></i> प्रारंभिक स्टॉक एडिट करें</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>प्रोडक्ट</th><th style="text-align:center; color:#1e40af;">कार्यालय प्रारम्भिक स्टॉक</th><th style="text-align:center; color:#b45309;">गोदाम प्रारम्भिक स्टॉक</th></tr></thead>
+                        <tbody id="adminOpeningStockBody"></tbody>
+                    </table>
+                </div>
+                <div style="text-align:right; margin-top:12px;"><button onclick="saveOpeningStock()" class="btn btn-emerald">प्रारंभिक स्टॉक सुरक्षित करें</button></div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3 style="margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">गांव जोड़े / हटाएं</h3>
+                    <div style="display:flex; gap:8px; margin-bottom:10px;"><input type="text" id="new_village_name" placeholder="गांव नाम"><button onclick="addVillage()" class="btn btn-emerald">जोड़ें</button></div>
+                    <ul id="village_list_ul" style="max-height:180px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;"></ul>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">सुरक्षा पासवर्ड सेटिंग्स</h3>
+                    <div class="space-y-2">
+                        <div><label>एडमिन पासवर्ड:</label><input type="password" id="sys_admin_pass" style="background:#f5d0fe; font-weight:700;"></div>
+                        <div><label>कार्यालय पासवर्ड:</label><input type="password" id="sys_off_pass"></div>
+                        <div><label>गोदाम पासवर्ड:</label><input type="password" id="sys_wh_pass"></div>
+                        <button onclick="updatePasswords()" class="btn btn-blue" style="width:100%; margin-top:6px;">पासवर्ड अपडेट करें</button>
+                    </div>
+                </div>
+                <div class="card" style="grid-column: span 2;">
+                    <h3 style="margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">डेटा बैकअप व रीस्टोर</h3>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                        <button onclick="downloadBackup()" class="btn btn-gray"><i class="fa-solid fa-download"></i> बैकअप डाउनलोड (.JSON)</button>
+                        <label class="btn" style="background:#e2e8f0; color:#0f172a; cursor:pointer;"><i class="fa-solid fa-upload"></i> बैकअप रीस्टोर<input type="file" id="restoreFile" onchange="restoreBackup(event)" class="hidden" accept=".json"></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>PACS Sawlmendha - प्राथमिक कृषि साख सहकारी समिति</p>
+        <p style="color:#cbd5e1; font-weight:600; margin-top:2px;">Powered by Op Dongare</p>
+    </footer>
+
+    <!-- MODALS -->
+    <div id="passwordModal" class="modal hidden">
+        <div class="modal-box" style="max-width:380px;">
+            <h3 id="modalTitle" style="font-size:16px; font-weight:700; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">सुरक्षा पासवर्ड</h3>
+            <p style="font-size:11px; color:#64748b; margin-bottom:10px;">आगे बढ़ने के लिए पासवर्ड दर्ज करें:</p>
+            <input type="password" id="modalPasswordInput" placeholder="पासवर्ड" style="margin-bottom:14px;">
+            <div style="text-align:right; display:flex; justify-content:flex-end; gap:8px;">
+                <button onclick="closePassModal()" class="btn btn-gray">रद्द करें</button>
+                <button onclick="verifyPassword()" class="btn btn-emerald">लॉगिन करें</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editVoucherModal" class="modal hidden">
+        <div class="modal-box">
+            <div class="card-hdr"><h3 style="font-size:16px;">वाउचर विवरण सुधारें (Edit)</h3><button onclick="closeEditVoucherModal()" style="border:none; background:none; font-size:18px; cursor:pointer;">&times;</button></div>
+            <div class="grid grid-2" style="margin-bottom:12px;">
+                <div><label>दिनांक *</label><input type="date" id="edit_v_date"></div>
+                <div>
+                    <div style="display:flex; justify-content:space-between;"><label>किसान का नाम *</label><button type="button" onclick="autoConvertFarmerName('edit_v_farmer')" class="btn btn-blue" style="padding:1px 4px; font-size:9px;">🇮🇳 हिन्दी</button></div>
+                    <input type="text" id="edit_v_farmer" onblur="autoConvertFarmerName('edit_v_farmer')">
+                </div>
+                <div><label>वाउचर नंबर *</label><input type="text" id="edit_v_voucherno"></div>
+                <div><label>ग्राम का नाम *</label><select id="edit_v_village"></select></div>
+            </div>
+            <div style="border-top:1px solid #e2e8f0; pt:10px;">
+                <h4 style="font-size:11px; font-weight:700; margin-bottom:6px;">खाद मात्रा में सुधार:</h4>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>प्रोडक्ट</th><th style="text-align:center;">कार्यालय स्वीकृत</th><th style="text-align:center;">गोदाम वितरित</th></tr></thead>
+                        <tbody id="edit_v_products_body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="text-align:right; margin-top:14px; display:flex; justify-content:flex-end; gap:8px;">
+                <button onclick="closeEditVoucherModal()" class="btn btn-gray">रद्द करें</button>
+                <button onclick="saveEditedVoucher()" class="btn btn-blue">सुधार सुरक्षित करें</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editInwardModal" class="modal hidden">
+        <div class="modal-box" style="max-width:400px;">
+            <div class="card-hdr"><h3 style="font-size:15px;">आवक स्टॉक सुधारें (Edit Inward)</h3><button onclick="closeEditInwardModal()" style="border:none; background:none; font-size:18px; cursor:pointer;">&times;</button></div>
+            <div class="space-y-2" style="margin-bottom:14px;">
+                <div><label>आवक दिनांक *</label><input type="date" id="edit_inw_date"></div>
+                <div><label>स्तर *</label><select id="edit_inw_level"><option value="office">कार्यालय आवक</option><option value="warehouse">गोदाम आवक</option></select></div>
+                <div><label>खाद/प्रोडक्ट *</label><select id="edit_inw_product"></select></div>
+                <div><label>मात्रा (बैग) *</label><input type="number" id="edit_inw_qty" min="1" style="font-weight:700;"></div>
+            </div>
+            <div style="text-align:right; display:flex; justify-content:flex-end; gap:8px;">
+                <button onclick="closeEditInwardModal()" class="btn btn-gray">रद्द करें</button>
+                <button onclick="saveEditedInward()" class="btn btn-indigo">सुरक्षित करें</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4crp3VCQxh8drPW_vVwkLCkv1AHiBFhU",
+            authDomain: "pacs-sawalmendha-stock.firebaseapp.com",
+            databaseURL: "https://pacs-sawalmendha-stock-default-rtdb.firebaseio.com",
+            projectId: "pacs-sawalmendha-stock",
+            storageBucket: "pacs-sawalmendha-stock.firebasestorage.app",
+            messagingSenderId: "580403701766",
+            appId: "1:580403701766:web:0009af828e796f2853fb87",
+            measurementId: "G-1WHPRJMD7N"
+        };
+
+        let db = null;
+        let isFirebaseConnected = false;
+
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            isFirebaseConnected = true;
+        } catch(e) { console.warn("Firebase Init Exception:", e); }
+
+        async function transliterateToHindi(text) {
+            if (!text || text.trim() === '' || /^[\u0900-\u097F\s]+$/.test(text)) return text;
+            try {
+                const response = await fetch(`https://inputtools.google.com/request?text=${encodeURIComponent(text)}&itc=hi-t-i100-en-translit&num=1`);
+                const data = await response.json();
+                if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1]) return data[1][0][1][0];
+            } catch (e) {}
+            return text;
+        }
+
+        async function autoConvertFarmerName(elementId) {
+            const input = document.getElementById(elementId);
+            if (input && input.value && input.value.trim() !== '') {
+                input.value = await transliterateToHindi(input.value.trim());
+            }
+        }
+
+        function getTodayYYYYMMDD() {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+
+        function formatDisplayDate(yyyy_mm_dd) {
+            if(!yyyy_mm_dd) return new Date().toLocaleDateString('hi-IN');
+            const parts = yyyy_mm_dd.toString().split('-');
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : yyyy_mm_dd;
+        }
+
+        function parseExcelDate(val) {
+            if (!val) return getTodayYYYYMMDD();
+            if (typeof val === 'number') {
+                const dateObj = new Date((val - (25567 + 2)) * 86400 * 1000);
+                return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            }
+            let str = val.toString().trim();
+            if (str.includes('/')) {
+                const parts = str.split('/');
+                if (parts.length === 3 && parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            }
+            return str;
+        }
+
+        let appData = {
+            passwords: { office: '1234', warehouse: '5678', settings: '9999' },
+            products: ['यूरिया', 'डीएपी', 'एनपीके (NPK)', 'सिंगल सुपर फास्फेट'],
+            villages: ['सावलमेंढा', 'ग्राम १', 'ग्राम २', 'ग्राम ३'],
+            stock: { office: {}, warehouse: {} },
+            inwardLogs: [],
+            vouchers: []
+        };
+
+        let currentModalTarget = null;
+        let unlockedModules = { office: false, warehouse: false, settings: false };
+        let activeTab = 'dashboard';
+        let editingVoucherId = null;
+        let editingInwardId = null;
+        let dashboardDateFilter = { from: '', to: '' };
+
+        window.onload = function() {
+            document.getElementById('currentDateDisplay').innerText = 'दिनांक: ' + new Date().toLocaleDateString('hi-IN');
+            const todayStr = getTodayYYYYMMDD();
+            if(document.getElementById('off_entry_date')) document.getElementById('off_entry_date').value = todayStr;
+            if(document.getElementById('inw_off_date')) document.getElementById('inw_off_date').value = todayStr;
+            if(document.getElementById('inw_wh_date')) document.getElementById('inw_wh_date').value = todayStr;
+            loadDataAndSync();
+        };
+
+        let isSavingLocally = false; // apne khud ke Firebase write se aane wale echo ko ignore karne ke liye
+        let saveDebounceTimer = null;
+        let lastSyncedJSON = '';
+
+        function loadDataAndSync() {
+            const savedLocal = localStorage.getItem('pacs_sawlmendha_db');
+            if (savedLocal) {
+                try {
+                    appData = JSON.parse(savedLocal);
+                    if(!appData.inwardLogs) appData.inwardLogs = [];
+                } catch(e){}
+            }
+
+            if (isFirebaseConnected && db) {
+                const statusDiv = document.getElementById('cloudStatus');
+                statusDiv.innerText = 'क्लाउड कनेक्टेड (लाइव)';
+                statusDiv.className = "badge badge-green";
+
+                db.ref('pacs_sawalmendha_db_store').on('value', (snapshot) => {
+                    const cloudVal = snapshot.val();
+                    if (cloudVal) {
+                        const incomingJSON = JSON.stringify(cloudVal);
+                        // Agar yeh hamare apne hi save ka echo hai ya data same hai, to dobara render mat karo (lag ka bada karan)
+                        if (isSavingLocally || incomingJSON === lastSyncedJSON) { isSavingLocally = false; return; }
+                        lastSyncedJSON = incomingJSON;
+                        appData = cloudVal;
+                        if(!appData.inwardLogs) appData.inwardLogs = [];
+                        localStorage.setItem('pacs_sawlmendha_db', JSON.stringify(appData));
+                        autoMigrateExistingInwardStock();
+                        recalculateStockTotals();
+                        refreshActiveView();
+                    } else saveData();
+                });
+            } else {
+                autoMigrateExistingInwardStock();
+                recalculateStockTotals();
+                refreshActiveView();
+            }
+        }
+
+        function autoMigrateExistingInwardStock() {
+            if (!appData.inwardLogs) appData.inwardLogs = [];
+            if (appData.inwardLogs.length === 0) {
+                appData.products.forEach(prod => {
+                    const offInw = appData.stock.office[prod] ? (appData.stock.office[prod].inward || 0) : 0;
+                    if (offInw > 0) appData.inwardLogs.push({ id: Date.now() + Math.floor(Math.random() * 1000), date: '2026-07-01', level: 'office', product: prod, qty: offInw });
+                    const whInw = appData.stock.warehouse[prod] ? (appData.stock.warehouse[prod].inward || 0) : 0;
+                    if (whInw > 0) appData.inwardLogs.push({ id: Date.now() + Math.floor(Math.random() * 1000) + 1, date: '2026-07-01', level: 'warehouse', product: prod, qty: whInw });
+                });
+            }
+        }
+
+        function recalculateStockTotals() {
+            if (!appData.inwardLogs) appData.inwardLogs = [];
+            if (!appData.vouchers) appData.vouchers = [];
+
+            appData.products.forEach(prod => {
+                if (!appData.stock.office[prod]) appData.stock.office[prod] = { opening: 0, inward: 0, issued: 0 };
+                if (!appData.stock.warehouse[prod]) appData.stock.warehouse[prod] = { opening: 0, inward: 0, delivered: 0 };
+
+                const logOffInw = appData.inwardLogs.filter(l => l.level === 'office' && l.product === prod).reduce((s, l) => s + (parseInt(l.qty) || 0), 0);
+                const logWhInw = appData.inwardLogs.filter(l => l.level === 'warehouse' && l.product === prod).reduce((s, l) => s + (parseInt(l.qty) || 0), 0);
+
+                if (logOffInw > 0 || appData.inwardLogs.length > 0) appData.stock.office[prod].inward = logOffInw;
+                if (logWhInw > 0 || appData.inwardLogs.length > 0) appData.stock.warehouse[prod].inward = logWhInw;
+
+                let offIss = 0, whDel = 0;
+                appData.vouchers.forEach(v => {
+                    if (v.items) {
+                        v.items.forEach(i => {
+                            if (i.product === prod) {
+                                offIss += (parseInt(i.issuedQty) || 0);
+                                whDel += (parseInt(i.deliveredQty) || 0);
+                            }
+                        });
+                    }
+                });
+
+                appData.stock.office[prod].issued = offIss;
+                appData.stock.warehouse[prod].delivered = whDel;
+            });
+        }
+
+        function saveData() {
+            recalculateStockTotals();
+            const json = JSON.stringify(appData);
+            localStorage.setItem('pacs_sawlmendha_db', json);
+
+            // Firebase write ko थोड़ा debounce karte hain taaki bar-bar tez entry karne par UI hang na ho
+            if (isFirebaseConnected && db) {
+                clearTimeout(saveDebounceTimer);
+                saveDebounceTimer = setTimeout(() => {
+                    isSavingLocally = true;
+                    lastSyncedJSON = json;
+                    db.ref('pacs_sawalmendha_db_store').set(appData);
+                }, 400);
+            }
+        }
+
+        function refreshActiveView() {
+            renderDashboard();
+            populateVillageDropdown();
+            if(activeTab === 'office') prepareOfficeForm();
+            if(activeTab === 'warehouse') prepareWarehouseForm();
+            if(activeTab === 'inward') prepareInwardForm();
+            if(activeTab === 'reports') renderReports();
+            if(activeTab === 'settings') renderSettings();
+        }
+
+        function switchTab(tabName) {
+            activeTab = tabName;
+            ['dashboard', 'office', 'warehouse', 'inward', 'reports', 'settings'].forEach(t => {
+                document.getElementById('page-' + t).classList.add('hidden');
+                document.getElementById('tab-' + t).classList.remove('active');
+            });
+            document.getElementById('page-' + tabName).classList.remove('hidden');
+            document.getElementById('tab-' + tabName).classList.add('active');
+            refreshActiveView();
+        }
+
+        function requestAccess(module) {
+            if (unlockedModules[module]) switchTab(module);
+            else {
+                currentModalTarget = module;
+                if(module === 'office') document.getElementById('modalTitle').innerText = 'कार्यालय पासवर्ड';
+                else if(module === 'warehouse') document.getElementById('modalTitle').innerText = 'गोदाम पासवर्ड';
+                else if(module === 'settings') document.getElementById('modalTitle').innerText = 'एडमिन पासवर्ड (सेटिंग्स)';
+
+                document.getElementById('modalPasswordInput').value = '';
+                document.getElementById('passwordModal').classList.remove('hidden');
+                document.getElementById('modalPasswordInput').focus();
+            }
+        }
+
+        function closePassModal() { document.getElementById('passwordModal').classList.add('hidden'); }
+
+        function verifyPassword() {
+            const entered = document.getElementById('modalPasswordInput').value.trim();
+            if (entered === appData.passwords[currentModalTarget]) {
+                unlockedModules[currentModalTarget] = true;
+                closePassModal();
+                switchTab(currentModalTarget);
+            } else alert('गलत पासवर्ड!');
+        }
+
+        function lockModule(module) { unlockedModules[module] = false; switchTab('dashboard'); }
+
+        function applyDashboardDateFilter() {
+            const f = document.getElementById('dash_from_date').value, t = document.getElementById('dash_to_date').value;
+            if(!f || !t) return alert('कृपया दोनों तिथियां चुनें!');
+            dashboardDateFilter = { from: f, to: t };
+            document.getElementById('dash_filter_heading_text').innerText = `दिनांक ${formatDisplayDate(f)} से ${formatDisplayDate(t)} तक का फ़िल्टर स्टॉक`;
+            renderDashboard();
+        }
+
+        function clearDashboardDateFilter() {
+            document.getElementById('dash_from_date').value = '';
+            document.getElementById('dash_to_date').value = '';
+            dashboardDateFilter = { from: '', to: '' };
+            document.getElementById('dash_filter_heading_text').innerText = 'कार्यालय और गोदाम स्तर पर कुल खाद स्टॉक का विवरण';
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            const offBody = document.getElementById('officeStockTable'), whBody = document.getElementById('warehouseStockTable');
+            let offHtml = '', whHtml = '';
+
+            const hasDate = (dashboardDateFilter.from && dashboardDateFilter.to);
+
+            appData.products.forEach(prod => {
+                let offOpening = appData.stock.office[prod] ? appData.stock.office[prod].opening : 0;
+                let whOpening = appData.stock.warehouse[prod] ? appData.stock.warehouse[prod].opening : 0;
+                let offInward = 0, whInward = 0, offIssued = 0, whDelivered = 0;
+
+                if (hasDate) {
+                    const from = dashboardDateFilter.from, to = dashboardDateFilter.to;
+                    offOpening += appData.inwardLogs.filter(l => l.level === 'office' && l.product === prod && l.date < from).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+                    whOpening += appData.inwardLogs.filter(l => l.level === 'warehouse' && l.product === prod && l.date < from).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+
+                    appData.vouchers.forEach(v => {
+                        if (v.date < from && v.items) v.items.forEach(i => { if (i.product === prod) offOpening -= (parseInt(i.issuedQty)||0); });
+                        const delivDate = v.lastDeliveryDate || v.date;
+                        if (delivDate < from && v.items) v.items.forEach(i => { if (i.product === prod) whOpening -= (parseInt(i.deliveredQty)||0); });
+                    });
+
+                    offInward = appData.inwardLogs.filter(l => l.level === 'office' && l.product === prod && l.date >= from && l.date <= to).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+                    whInward = appData.inwardLogs.filter(l => l.level === 'warehouse' && l.product === prod && l.date >= from && l.date <= to).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+
+                    appData.vouchers.forEach(v => {
+                        if (v.date >= from && v.date <= to && v.items) v.items.forEach(i => { if (i.product === prod) offIssued += (parseInt(i.issuedQty)||0); });
+                        const delivDate = v.lastDeliveryDate || v.date;
+                        if (delivDate >= from && delivDate <= to && v.items) v.items.forEach(i => { if (i.product === prod) whDelivered += (parseInt(i.deliveredQty)||0); });
+                    });
+                } else {
+                    const offObj = appData.stock.office[prod] || { opening: 0, inward: 0, issued: 0 };
+                    const whObj = appData.stock.warehouse[prod] || { opening: 0, inward: 0, delivered: 0 };
+                    offOpening = offObj.opening; offInward = offObj.inward; offIssued = offObj.issued;
+                    whOpening = whObj.opening; whInward = whObj.inward; whDelivered = whObj.delivered;
+                }
+
+                const offRem = (offOpening + offInward) - offIssued;
+                const whRem = (whOpening + whInward) - whDelivered;
+
+                offHtml += `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;">${offOpening} बैग</td><td style="text-align:center; color:#15803d; font-weight:700;">+${offInward} बैग</td><td style="text-align:center; color:#1d4ed8; font-weight:700;">-${offIssued} बैग</td><td style="text-align:center; font-weight:800; background:#dbeafe; color:#1e40af;">${offRem} बैग</td></tr>`;
+                whHtml += `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;">${whOpening} बैग</td><td style="text-align:center; color:#15803d; font-weight:700;">+${whInward} बैग</td><td style="text-align:center; color:#b45309; font-weight:700;">-${whDelivered} बैग</td><td style="text-align:center; font-weight:800; background:#fef3c7; color:#92400e;">${whRem} बैग</td></tr>`;
+            });
+            offBody.innerHTML = offHtml;
+            whBody.innerHTML = whHtml;
+        }
+
+        function populateVillageDropdown() {
+            const sel = document.getElementById('off_village_select');
+            sel.innerHTML = '<option value="">-- ग्राम चुनें --</option>' + appData.villages.map(v => `<option value="${v}">${v}</option>`).join('');
+        }
+
+        function prepareOfficeForm() {
+            populateVillageDropdown();
+            if(!document.getElementById('off_entry_date').value) document.getElementById('off_entry_date').value = getTodayYYYYMMDD();
+
+            const tbody = document.getElementById('officeProductAllocationRows');
+            tbody.innerHTML = appData.products.map(prod => {
+                const offObj = appData.stock.office[prod] || { opening: 0, inward: 0, issued: 0 };
+                const avail = (offObj.opening + offObj.inward) - offObj.issued;
+                return `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center; font-weight:700; color:#475569;">${avail} बैग</td><td style="text-align:center;"><input type="number" min="0" max="${avail}" data-prod="${prod}" class="off-item-qty" style="width:100px; text-align:center;" placeholder="0"></td></tr>`;
+            }).join('');
+
+            filterOfficeVouchers();
+        }
+
+        function filterOfficeVouchers() {
+            const searchText = (document.getElementById('off_search_input').value || '').toLowerCase().trim();
+            const searchDate = document.getElementById('off_search_date').value;
+            const recBody = document.getElementById('recentOfficeVouchersBody');
+
+            if (appData.vouchers && appData.vouchers.length > 0) {
+                const filtered = appData.vouchers.filter(v => {
+                    const mText = !searchText || v.farmer.toLowerCase().includes(searchText) || v.voucherNo.toLowerCase().includes(searchText) || v.village.toLowerCase().includes(searchText);
+                    const mDate = !searchDate || (v.date === searchDate);
+                    return mText && mDate;
+                }).reverse();
+
+                document.getElementById('off_voucher_count_tag').innerText = `कुल: ${filtered.length} वाउचर`;
+
+                if (filtered.length > 0) {
+                    recBody.innerHTML = filtered.map(v => `
+                            <tr>
+                                <td>${formatDisplayDate(v.date)}</td>
+                                <td style="font-weight:700;">${v.voucherNo}</td>
+                                <td style="font-weight:600; color:#1e40af;">${v.farmer}</td>
+                                <td>${v.village}</td>
+                                <td>${v.items.map(i=>`${i.product}:${i.issuedQty} बैग`).join(', ')}</td>
+                                <td style="text-align:center;">
+                                    <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> एडिट</button>
+                                    <button onclick="deleteOfficeVoucher(${v.id})" class="btn btn-red" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-trash"></i> डिलीट</button>
+                                </td>
+                            </tr>
+                        `).join('');
+                } else recBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:12px;">कोई वाउचर नहीं मिला।</td></tr>';
+            } else {
+                document.getElementById('off_voucher_count_tag').innerText = 'कुल: 0';
+                recBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:12px;">कोई वाउचर उपलब्ध नहीं है।</td></tr>';
+            }
+        }
+
+        function clearOfficeSearch() {
+            document.getElementById('off_search_input').value = '';
+            document.getElementById('off_search_date').value = '';
+            filterOfficeVouchers();
+        }
+
+        async function handleOfficeSubmit(e) {
+            e.preventDefault();
+            const entryDateVal = document.getElementById('off_entry_date').value || getTodayYYYYMMDD();
+            let farmer = await transliterateToHindi(document.getElementById('off_farmer_name').value.trim());
+            document.getElementById('off_farmer_name').value = farmer;
+            const voucher = document.getElementById('off_voucher_no').value.trim();
+            const village = document.getElementById('off_village_select').value;
+
+            let items = [];
+            document.querySelectorAll('.off-item-qty').forEach(inp => {
+                const qty = parseInt(inp.value) || 0;
+                if (qty > 0) items.push({ product: inp.getAttribute('data-prod'), issuedQty: qty, deliveredQty: 0 });
+            });
+
+            if (items.length === 0) return alert('कृपया कम से कम एक खाद की मात्रा दर्ज करें!');
+
+            if(!appData.vouchers) appData.vouchers = [];
+            appData.vouchers.push({ id: Date.now(), farmer: farmer, voucherNo: voucher, village: village, date: entryDateVal, items: items, status: 'PENDING' });
+            saveData();
+            alert(`वाउचर किसान "${farmer}" के नाम से सेव हुआ!`);
+            document.getElementById('officeEntryForm').reset();
+            prepareOfficeForm();
+        }
+
+        function prepareWarehouseForm() {
+            filterWarehouseVouchers();
+            const whRecBody = document.getElementById('recentWarehouseVouchersBody');
+            if(appData.vouchers) {
+                const deliveredList = appData.vouchers.filter(v => v.items.some(i => i.deliveredQty > 0)).reverse();
+                if(deliveredList.length > 0) {
+                    whRecBody.innerHTML = deliveredList.map(v => `<tr><td>${formatDisplayDate(v.lastDeliveryDate || v.date)}</td><td style="font-weight:700;">${v.voucherNo}</td><td style="font-weight:600; color:#b45309;">${v.farmer}</td><td>${v.village}</td><td>${v.items.map(i=>`${i.product}:${i.deliveredQty}/${i.issuedQty}`).join(', ')}</td><td style="text-align:center;"><button onclick="revertToWarehousePending(${v.id})" class="btn btn-amber" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-rotate-left"></i> रद्द करें</button> <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> सुधार</button></td></tr>`).join('');
+                } else whRecBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:12px;">कोई डिलीवरी रिकॉर्ड नहीं है।</td></tr>';
+            }
+        }
+
+        function filterWarehouseVouchers() {
+            const sel = document.getElementById('wh_penciling_vouchers');
+            const searchText = (document.getElementById('wh_search_name').value || '').toLowerCase().trim();
+            const searchDate = document.getElementById('wh_search_date').value;
+            let optsHtml = '';
+            let count = 0;
+            if(appData.vouchers) {
+                appData.vouchers.forEach(v => {
+                    if (v.items.some(i => i.issuedQty > i.deliveredQty)) {
+                        const mText = !searchText || v.farmer.toLowerCase().includes(searchText) || v.voucherNo.toLowerCase().includes(searchText) || v.village.toLowerCase().includes(searchText);
+                        const mDate = !searchDate || (v.date === searchDate);
+                        if (mText && mDate) {
+                            count++;
+                            optsHtml += `<option value="${v.id}">${v.farmer} - वाउचर: ${v.voucherNo} (${v.village}) - दिनांक: ${formatDisplayDate(v.date)}</option>`;
+                        }
+                    }
+                });
+            }
+            sel.innerHTML = count === 0 ? '<option value="">कोई मेल खाता बकाया वाउचर नहीं मिला</option>' : '<option value="">-- चुनें (किसान नाम - वाउचर नं) --</option>' + optsHtml;
+            document.getElementById('wh_details_box').classList.add('hidden');
+        }
+
+        function clearWarehouseSearch() {
+            document.getElementById('wh_search_name').value = '';
+            document.getElementById('wh_search_date').value = '';
+            filterWarehouseVouchers();
+        }
+
+        function populateWarehouseDetails() {
+            const val = document.getElementById('wh_penciling_vouchers').value;
+            const box = document.getElementById('wh_details_box');
+            if (!val) return box.classList.add('hidden');
+            const vObj = appData.vouchers.find(x => x.id == val);
+            if (!vObj) return;
+
+            document.getElementById('wh_disp_farmer').innerText = vObj.farmer;
+            document.getElementById('wh_disp_voucher').innerText = vObj.voucherNo;
+            document.getElementById('wh_disp_village').innerText = vObj.village;
+            document.getElementById('wh_delivery_date').value = getTodayYYYYMMDD();
+
+            const tbody = document.getElementById('wh_item_table_body');
+            tbody.innerHTML = vObj.items.map((item, index) => {
+                const rem = item.issuedQty - item.deliveredQty;
+                if (rem <= 0) return '';
+                return `<tr><td style="font-weight:600;">${item.product}</td><td style="text-align:center;">${item.issuedQty}</td><td style="text-align:center; color:#15803d;">${item.deliveredQty}</td><td style="text-align:center; font-weight:700; color:#dc2626;">${rem}</td><td style="text-align:center;"><input type="number" min="0" max="${rem}" data-item-idx="${index}" value="${rem}" class="wh-deliv-qty" style="width:100px; text-align:center; font-weight:700; background:#fef3c7;" required></td></tr>`;
+            }).join('');
+            box.classList.remove('hidden');
+        }
+
+        function handleWarehouseSubmit(e) {
+            e.preventDefault();
+            const vId = document.getElementById('wh_penciling_vouchers').value;
+            const delivDateVal = document.getElementById('wh_delivery_date').value || getTodayYYYYMMDD();
+            const vObj = appData.vouchers.find(x => x.id == vId);
+            if (!vObj) return;
+
+            let deliveredAny = false;
+            document.querySelectorAll('.wh-deliv-qty').forEach(inp => {
+                const idx = parseInt(inp.getAttribute('data-item-idx'));
+                const qty = parseInt(inp.value) || 0;
+                if (qty > 0) { deliveredAny = true; vObj.items[idx].deliveredQty += qty; }
+            });
+
+            if (!deliveredAny) return alert('कृपया डिलीवरी मात्रा दर्ज करें!');
+            vObj.lastDeliveryDate = delivDateVal;
+            vObj.status = vObj.items.every(i => i.issuedQty === i.deliveredQty) ? 'COMPLETED' : 'PARTIAL';
+            saveData();
+            alert('गोदाम सुपुर्दगी दर्ज कर ली गई है!');
+            prepareWarehouseForm();
+        }
+
+        function revertToWarehousePending(vId) {
+            if (!confirm('क्या आप इस वाउचर की गोदाम डिलीवरी रद्द करना चाहते हैं?\nकिसान फिर से गोदाम पेंडिंग लिस्ट में दिखेगा।')) return;
+            const vObj = appData.vouchers.find(v => v.id == vId);
+            if (!vObj) return;
+            vObj.items.forEach(it => { it.deliveredQty = 0; });
+            vObj.status = 'PENDING';
+            delete vObj.lastDeliveryDate;
+            saveData();
+            alert('गोदाम डिलीवरी रद्द हो गई है!');
+        }
+
+        function deleteOfficeVoucher(vId) {
+            if (!confirm('क्या आप सचमुच इस वाउचर को कार्यालय स्तर से पूर्ण रूप से डिलीट करना चाहते हैं?')) return;
+            const idx = appData.vouchers.findIndex(v => v.id == vId);
+            if (idx !== -1) { appData.vouchers.splice(idx, 1); saveData(); alert('वाउचर डिलीट कर दिया गया!'); }
+        }
+
+        function openEditVoucherModal(vId) {
+            editingVoucherId = vId;
+            const vObj = appData.vouchers.find(v => v.id == vId);
+            if (!vObj) return;
+
+            document.getElementById('edit_v_date').value = vObj.date || getTodayYYYYMMDD();
+            document.getElementById('edit_v_farmer').value = vObj.farmer;
+            document.getElementById('edit_v_voucherno').value = vObj.voucherNo;
+
+            const vSel = document.getElementById('edit_v_village');
+            vSel.innerHTML = appData.villages.map(v => `<option value="${v}" ${v === vObj.village ? 'selected' : ''}>${v}</option>`).join('');
+
+            const tbody = document.getElementById('edit_v_products_body');
+            tbody.innerHTML = appData.products.map(prod => {
+                const ex = vObj.items.find(i => i.product === prod) || { issuedQty: 0, deliveredQty: 0 };
+                return `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;"><input type="number" min="0" data-prod="${prod}" class="edit-item-issued" style="width:90px; text-align:center; font-weight:700; background:#eff6ff;" value="${ex.issuedQty}"></td><td style="text-align:center;"><input type="number" min="0" data-prod="${prod}" class="edit-item-delivered" style="width:90px; text-align:center; font-weight:700; background:#fef3c7;" value="${ex.deliveredQty}"></td></tr>`;
+            }).join('');
+            document.getElementById('editVoucherModal').classList.remove('hidden');
+        }
+
+        function closeEditVoucherModal() { document.getElementById('editVoucherModal').classList.add('hidden'); }
+
+        async function saveEditedVoucher() {
+            const vObj = appData.vouchers.find(v => v.id == editingVoucherId);
+            if (!vObj) return;
+
+            vObj.date = document.getElementById('edit_v_date').value || getTodayYYYYMMDD();
+            vObj.farmer = await transliterateToHindi(document.getElementById('edit_v_farmer').value.trim());
+            vObj.voucherNo = document.getElementById('edit_v_voucherno').value.trim();
+            vObj.village = document.getElementById('edit_v_village').value;
+
+            const issuedInputs = document.querySelectorAll('.edit-item-issued');
+            const deliveredInputs = document.querySelectorAll('.edit-item-delivered');
+            let newItems = [];
+
+            issuedInputs.forEach((inp, idx) => {
+                const prod = inp.getAttribute('data-prod');
+                const iss = parseInt(inp.value) || 0;
+                let del = parseInt(deliveredInputs[idx].value) || 0;
+                if(del > iss) del = iss;
+                if (iss > 0 || del > 0) newItems.push({ product: prod, issuedQty: iss, deliveredQty: del });
+            });
+
+            vObj.items = newItems;
+            vObj.status = (vObj.items.length > 0 && vObj.items.every(i => i.issuedQty === i.deliveredQty)) ? 'COMPLETED' : 'PARTIAL';
+            saveData();
+            closeEditVoucherModal();
+            alert('वाउचर में सुधार (Edit) सफलतापूर्वक सेव हो गया है!');
+        }
+
+        // INWARD HANDLING WITH EDIT & DELETE
+        function prepareInwardForm() {
+            const p1 = document.getElementById('inw_off_product'), p2 = document.getElementById('inw_wh_product');
+            const prodOpts = appData.products.map(p => `<option value="${p}">${p}</option>`).join('');
+            p1.innerHTML = prodOpts; p2.innerHTML = prodOpts;
+            renderInwardHistory();
+        }
+
+        function handleInwardSubmit(e, level) {
+            e.preventDefault();
+            const dateInp = (level === 'office') ? 'inw_off_date' : 'inw_wh_date';
+            const prodInp = (level === 'office') ? 'inw_off_product' : 'inw_wh_product';
+            const qtyInp = (level === 'office') ? 'inw_off_qty' : 'inw_wh_qty';
+
+            const inwDate = document.getElementById(dateInp).value || getTodayYYYYMMDD();
+            const prod = document.getElementById(prodInp).value;
+            const qty = parseInt(document.getElementById(qtyInp).value) || 0;
+
+            if (qty <= 0) return alert('कृपया सही मात्रा दर्ज करें!');
+
+            if (!appData.inwardLogs) appData.inwardLogs = [];
+
+            appData.inwardLogs.push({
+                id: Date.now(),
+                date: inwDate,
+                level: level,
+                product: prod,
+                qty: qty
+            });
+
+            saveData();
+            alert(`${level === 'office' ? 'कार्यालय' : 'गोदाम'} में ${qty} बैग ${prod} आवक दर्ज हो गया!`);
+            document.getElementById(qtyInp).value = '';
+            renderInwardHistory();
+            refreshActiveView();
+        }
+
+        function renderInwardHistory() {
+            const tbody = document.getElementById('inwardHistoryTableBody');
+            if (appData.inwardLogs && appData.inwardLogs.length > 0) {
+                tbody.innerHTML = [...appData.inwardLogs].reverse().map(log => {
+                    const tag = log.level === 'office' ? '<span class="badge badge-blue">कार्यालय</span>' : '<span class="badge badge-amber">गोदाम</span>';
+                    return `<tr><td style="font-weight:600;">${formatDisplayDate(log.date)}</td><td>${tag}</td><td style="font-weight:700;">${log.product}</td><td style="text-align:center; font-weight:700; color:#15803d;">+${log.qty} बैग</td><td style="text-align:center;"><button onclick="openEditInwardModal(${log.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> एडिट</button> <button onclick="deleteInwardLog(${log.id})" class="btn btn-red" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-trash"></i> डिलीट</button></td></tr>`;
+                }).join('');
+            } else tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b; padding:12px;">कोई आवक रिकॉर्ड उपलब्ध नहीं है।</td></tr>';
+        }
+
+        function openEditInwardModal(inwId) {
+            editingInwardId = inwId;
+            const log = appData.inwardLogs.find(l => l.id == inwId);
+            if (!log) return;
+
+            document.getElementById('edit_inw_date').value = log.date;
+            document.getElementById('edit_inw_level').value = log.level;
+            document.getElementById('edit_inw_qty').value = log.qty;
+
+            const pSel = document.getElementById('edit_inw_product');
+            pSel.innerHTML = appData.products.map(p => `<option value="${p}" ${p === log.product ? 'selected' : ''}>${p}</option>`).join('');
+
+            document.getElementById('editInwardModal').classList.remove('hidden');
+        }
+
+        function closeEditInwardModal() { document.getElementById('editInwardModal').classList.add('hidden'); }
+
+        function saveEditedInward() {
+            const log = appData.inwardLogs.find(l => l.id == editingInwardId);
+            if (!log) return;
+
+            log.date = document.getElementById('edit_inw_date').value || getTodayYYYYMMDD();
+            log.level = document.getElementById('edit_inw_level').value;
+            log.product = document.getElementById('edit_inw_product').value;
+            log.qty = parseInt(document.getElementById('edit_inw_qty').value) || 0;
+
+            saveData();
+            closeEditInwardModal();
+            alert('आवक प्रविष्टि में सुधार सुरक्षित हो गया!');
+            renderInwardHistory();
+            refreshActiveView();
+        }
+
+        function deleteInwardLog(inwId) {
+            if (!confirm('क्या आप इस आवक प्रविष्टि को डिलीट करना चाहते हैं?')) return;
+            const idx = appData.inwardLogs.findIndex(l => l.id == inwId);
+            if (idx !== -1) {
+                appData.inwardLogs.splice(idx, 1);
+                saveData();
+                alert('आवक प्रविष्टि डिलीट हो गई!');
+                renderInwardHistory();
+                refreshActiveView();
+            }
+        }
+
+        // ULTRA-SMART BULK EXCEL PARSER
+        function handleBulkExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+                    if (!jsonRows || jsonRows.length === 0) return alert("एक्सेल फाइल खाली है!");
+
+                    let count = 0;
+                    if (!appData.vouchers) appData.vouchers = [];
+
+                    jsonRows.forEach((row, rowIndex) => {
+                        let rawDate = '', farmer = '', voucherNo = '', village = '';
+
+                        for (let key in row) {
+                            const k = key.toString().trim().toLowerCase();
+                            const val = row[key] ? row[key].toString().trim() : '';
+                            if (!val) continue;
+
+                            if (!rawDate && (k.includes('दिनांक') || k.includes('तारीख') || k.includes('date') || k.includes('dt'))) rawDate = parseExcelDate(row[key]);
+                            if (!farmer && (k.includes('किसान') || k.includes('नाम') || k.includes('farmer') || k.includes('name') || k.includes('member'))) farmer = val;
+                            if (!voucherNo && (k.includes('वाउचर') || k.includes('परमिट') || k.includes('voucher') || k.includes('permit') || k.includes('no') || k.includes('क्रमांक'))) voucherNo = val;
+                            if (!village && (k.includes('ग्राम') || k.includes('गांव') || k.includes('गाँव') || k.includes('village'))) village = val;
+                        }
+
+                        if (!farmer) {
+                            const vals = Object.values(row).filter(v => v && v.toString().trim() !== '');
+                            if (vals.length > 0) farmer = vals[0].toString().trim();
+                        }
+
+                        if (!farmer) return;
+
+                        if (!voucherNo) voucherNo = 'P-' + (1000 + rowIndex + 1);
+                        if (!village) village = 'सावलमेंढा';
+                        if (!rawDate) rawDate = getTodayYYYYMMDD();
+
+                        let items = [];
+                        appData.products.forEach(prod => {
+                            let qty = 0;
+                            const pClean = prod.trim().toLowerCase();
+
+                            for (let key in row) {
+                                const kClean = key.trim().toLowerCase();
+                                const valNum = parseInt(row[key]) || 0;
+
+                                if (valNum > 0) {
+                                    if (kClean.includes(pClean) || pClean.includes(kClean)) { qty = valNum; break; }
+                                    if (pClean.includes('यूरिया') && (kClean.includes('urea') || kClean.includes('यूरिया'))) qty = valNum;
+                                    else if (pClean.includes('डीएपी') && (kClean.includes('dap') || kClean.includes('डीएपी'))) qty = valNum;
+                                    else if (pClean.includes('एनपीके') && (kClean.includes('npk') || kClean.includes('एनपीके'))) qty = valNum;
+                                    else if (pClean.includes('फास्फेट') && (kClean.includes('ssp') || kClean.includes('सुपर') || kClean.includes('फास्फेट'))) qty = valNum;
+                                }
+                            }
+
+                            if (qty > 0) items.push({ product: prod, issuedQty: qty, deliveredQty: 0 });
+                        });
+
+                        if (items.length > 0) {
+                            if (village && !appData.villages.includes(village)) appData.villages.push(village);
+                            appData.vouchers.push({
+                                id: Date.now() + Math.floor(Math.random() * 100000) + rowIndex,
+                                farmer: farmer,
+                                voucherNo: voucherNo,
+                                village: village,
+                                date: rawDate,
+                                items: items,
+                                status: 'PENDING'
+                            });
+                            count++;
+                        }
+                    });
+
+                    saveData();
+                    alert(`🎉 सफलता! कुल ${count} परमिट/वाउचर एक साथ अपलोड हो गए हैं!`);
+                    document.getElementById('bulkExcelFileInput').value = '';
+                    refreshActiveView();
+
+                } catch (err) {
+                    alert("एक्सेल फाइल पढ़ने में त्रुटि!");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // REPORTS & SEARCH
+        function clearReportsSearch() {
+            document.getElementById('rep_search_input').value = '';
+            document.getElementById('rep_search_date').value = '';
+            renderReports();
+        }
+
+        function renderReports() {
+            const pendingBody = document.getElementById('pendingReportBody'), inwardBody = document.getElementById('inwardReportBody'), fullBody = document.getElementById('fullReportBody'), villageBody = document.getElementById('villageReportBody');
+
+            const searchText = (document.getElementById('rep_search_input') ? document.getElementById('rep_search_input').value : '').toLowerCase().trim();
+            const searchDate = document.getElementById('rep_search_date') ? document.getElementById('rep_search_date').value : '';
+
+            let pendingHtml = '', fullHtml = '';
+
+            if(appData.vouchers) {
+                appData.vouchers.forEach(v => {
+                    const mText = !searchText || v.farmer.toLowerCase().includes(searchText) || v.voucherNo.toLowerCase().includes(searchText) || v.village.toLowerCase().includes(searchText);
+                    const mDate = !searchDate || (v.date === searchDate);
+
+                    if (mText && mDate) {
+                        v.items.forEach(i => {
+                            const pending = i.issuedQty - i.deliveredQty;
+                            if (pending > 0) {
+                                pendingHtml += `<tr><td style="font-weight:600;">${formatDisplayDate(v.date)}</td><td style="font-weight:700; color:#991b1b;">${v.farmer}</td><td>${v.voucherNo}</td><td>${v.village}</td><td style="font-weight:600;">${i.product}</td><td style="text-align:center;">${i.issuedQty}</td><td style="text-align:center; color:#15803d;">${i.deliveredQty}</td><td style="text-align:center; font-weight:700; color:#dc2626; background:#fee2e2;">${pending} बैग</td></tr>`;
+                            }
+                        });
+
+                        const hasDelivered = v.items.some(i => i.deliveredQty > 0);
+                        fullHtml += `<tr><td>${v.lastDeliveryDate ? `${formatDisplayDate(v.date)} (डिलीवरी: ${formatDisplayDate(v.lastDeliveryDate)})` : formatDisplayDate(v.date)}</td><td style="font-weight:700;">${v.voucherNo}</td><td style="font-weight:600;">${v.farmer}</td><td>${v.village}</td><td>${v.items.map(i=>`${i.product}: ${i.deliveredQty}/${i.issuedQty} बैग`).join(', ')}</td><td style="text-align:center;">${v.status === 'COMPLETED' ? '<span class="badge badge-green">पूर्ण</span>' : '<span class="badge badge-amber">बकाया</span>'}</td><td style="text-align:center;" class="no-print">${hasDelivered ? `<button onclick="revertToWarehousePending(${v.id})" class="btn btn-amber" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें</button>` : ''} <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> एडिट</button> <button onclick="deleteOfficeVoucher(${v.id})" class="btn btn-red" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-trash"></i> डिलीट</button></td></tr>`;
+                    }
+                });
+            }
+            pendingBody.innerHTML = pendingHtml || '<tr><td colspan="8" style="text-align:center; color:#64748b; padding:12px;">कोई बकाया स्टॉक नहीं है।</td></tr>';
+            fullBody.innerHTML = fullHtml;
+
+            if(appData.inwardLogs && appData.inwardLogs.length > 0) {
+                let inwardHtml = '';
+                appData.inwardLogs.forEach(log => {
+                    const mDate = !searchDate || (log.date === searchDate);
+                    const mText = !searchText || log.product.toLowerCase().includes(searchText) || log.level.toLowerCase().includes(searchText);
+                    if (mDate && mText) {
+                        inwardHtml += `<tr><td style="font-weight:600;">${formatDisplayDate(log.date)}</td><td>${log.level === 'office' ? 'कार्यालय स्तर' : 'गोदाम स्तर'}</td><td style="font-weight:700;">${log.product}</td><td style="text-align:center; font-weight:700; color:#15803d;">+${log.qty} बैग</td></tr>`;
+                    }
+                });
+                inwardBody.innerHTML = inwardHtml;
+            } else inwardBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:12px;">कोई आवक प्रविष्टि नहीं है।</td></tr>';
+
+            let villageHtml = '';
+            if(appData.villages) {
+                appData.villages.forEach(vill => {
+                    const villVouchers = appData.vouchers ? appData.vouchers.filter(v => v.village === vill) : [];
+                    if(villVouchers.length > 0) {
+                        let totals = {};
+                        villVouchers.forEach(v => { v.items.forEach(i => { totals[i.product] = (totals[i.product] || 0) + (i.issuedQty || 0); }); });
+                        const summaryStr = Object.keys(totals).map(p => `${p}: ${totals[p]} बैग`).join(', ');
+                        villageHtml += `<tr><td style="font-weight:700; color:#065f46;">${vill}</td><td style="text-align:center; font-weight:600;">${villVouchers.length} किसान</td><td>${summaryStr}</td></tr>`;
+                    }
+                });
+            }
+            villageBody.innerHTML = villageHtml || '<tr><td colspan="3" style="text-align:center; color:#64748b; padding:12px;">कोई ग्राम वितरण डेटा उपलब्ध नहीं है।</td></tr>';
+        }
+
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(document.getElementById('officeSummaryTable')), "कार्यालय स्टॉक समरी");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(document.getElementById('inwardReportTable')), "आवक रिपोर्ट (Inward)");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(document.getElementById('fullReportTable')), "जावक किसान वितरण");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(document.getElementById('pendingReportTable')), "गोदाम बकाया रिपोर्ट");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(document.getElementById('villageReportTable')), "ग्राम-वार वितरण समरी");
+            XLSX.writeFile(wb, "PACS_Sawlmendha_Complete_Fertilizer_Reports.xlsx");
+        }
+
+        function verifyAdminPasswordPrompt(actionName) {
+            const pass = prompt(`🚨 ${actionName} के लिए एडमिन पासवर्ड (9999) दर्ज करें:`);
+            if (!pass) return false;
+            if (pass.trim() === (appData.passwords.settings || '9999')) return true;
+            else { alert("❌ गलत एडमिन पासवर्ड!"); return false; }
+        }
+
+        function clearOfficeSection() {
+            if (!verifyAdminPasswordPrompt("कार्यालय की सभी एंट्रियां डिलीट करने")) return;
+            if (confirm("⚠️ क्या आप सचमुच कार्यालय के सभी वाउचर डिलीट करना चाहते हैं?")) {
+                appData.vouchers = [];
+                saveData();
+                alert("कार्यालय की सभी एंट्रियां डिलीट कर दी गई हैं!");
+                refreshActiveView();
+            }
+        }
+
+        function resetWarehouseSection() {
+            if (!verifyAdminPasswordPrompt("गोदाम की सभी डिलीवरियां रीसेट करने")) return;
+            if (confirm("⚠️ क्या आप गोदाम की सभी सुपुर्दगियां रीसेट करना चाहते हैं?")) {
+                if (appData.vouchers) {
+                    appData.vouchers.forEach(v => {
+                        if (v.items) v.items.forEach(i => i.deliveredQty = 0);
+                        v.status = 'PENDING';
+                        delete v.lastDeliveryDate;
+                    });
+                }
+                saveData();
+                alert("गोदाम की सभी सुपुर्दगियां रीसेट कर दी गई हैं!");
+                refreshActiveView();
+            }
+        }
+
+        function clearInwardSection() {
+            if (!verifyAdminPasswordPrompt("सभी आवक रिकॉर्ड डिलीट करने")) return;
+            if (confirm("⚠️ क्या आप सभी आवक (Inward) रिकॉर्ड डिलीट करना चाहते हैं?")) {
+                appData.inwardLogs = [];
+                saveData();
+                alert("सभी आवक रिकॉर्ड डिलीट कर दिए गए हैं!");
+                refreshActiveView();
+            }
+        }
+
+        function renderSettings() {
+            const ul = document.getElementById('village_list_ul');
+            ul.innerHTML = appData.villages.map((v, idx) => `<li style="padding:8px; display:flex; justify-content:space-between; align-items:center;"><span>${v}</span><button onclick="removeVillage(${idx})" class="btn btn-red" style="padding:2px 6px; font-size:10px;">हटाएं</button></li>`).join('');
+
+            document.getElementById('sys_admin_pass').value = appData.passwords.settings || '9999';
+            document.getElementById('sys_off_pass').value = appData.passwords.office;
+            document.getElementById('sys_wh_pass').value = appData.passwords.warehouse;
+
+            const tagBox = document.getElementById('product_list_tags');
+            tagBox.innerHTML = appData.products.map((p, idx) => `<span class="badge badge-blue" style="font-size:12px; padding:4px 10px;">${p} <i onclick="removeProduct(${idx})" class="fa-solid fa-circle-xmark text-red-500 cursor-pointer ml-1"></i></span>`).join('');
+
+            const adminStockBody = document.getElementById('adminOpeningStockBody');
+            adminStockBody.innerHTML = appData.products.map(prod => {
+                const offOpening = appData.stock.office[prod] ? appData.stock.office[prod].opening : 0;
+                const whOpening = appData.stock.warehouse[prod] ? appData.stock.warehouse[prod].opening : 0;
+                return `<tr><td style="font-weight:700;">${prod}</td><td style="text-align:center;"><input type="number" min="0" value="${offOpening}" data-prod="${prod}" class="admin-off-opening" style="width:100px; text-align:center; font-weight:700; background:#eff6ff;"></td><td style="text-align:center;"><input type="number" min="0" value="${whOpening}" data-prod="${prod}" class="admin-wh-opening" style="width:100px; text-align:center; font-weight:700; background:#fef3c7;"></td></tr>`;
+            }).join('');
+        }
+
+        function addNewProduct() {
+            const name = document.getElementById('new_prod_name').value.trim();
+            const offStock = parseInt(document.getElementById('new_prod_off_stock').value) || 0;
+            const whStock = parseInt(document.getElementById('new_prod_wh_stock').value) || 0;
+
+            if (!name) return alert('कृपया नाम दर्ज करें!');
+            if (appData.products.includes(name)) return alert('यह नाम पहले से मौजूद है!');
+
+            appData.products.push(name);
+            appData.stock.office[name] = { opening: offStock, inward: 0, issued: 0 };
+            appData.stock.warehouse[name] = { opening: whStock, inward: 0, delivered: 0 };
+
+            saveData();
+            alert(`नया प्रोडक्ट "${name}" जोड़ा गया!`);
+            document.getElementById('new_prod_name').value = '';
+            renderSettings(); renderDashboard();
+        }
+
+        function removeProduct(idx) {
+            const pName = appData.products[idx];
+            if (confirm(`क्या आप "${pName}" को हटाना चाहते हैं?`)) {
+                appData.products.splice(idx, 1);
+                delete appData.stock.office[pName];
+                delete appData.stock.warehouse[pName];
+                saveData(); renderSettings(); renderDashboard();
+            }
+        }
+
+        function saveOpeningStock() {
+            document.querySelectorAll('.admin-off-opening').forEach(inp => {
+                const prod = inp.getAttribute('data-prod'), val = parseInt(inp.value) || 0;
+                if(!appData.stock.office[prod]) appData.stock.office[prod] = { opening: 0, inward: 0, issued: 0 };
+                appData.stock.office[prod].opening = val;
+            });
+
+            document.querySelectorAll('.admin-wh-opening').forEach(inp => {
+                const prod = inp.getAttribute('data-prod'), val = parseInt(inp.value) || 0;
+                if(!appData.stock.warehouse[prod]) appData.stock.warehouse[prod] = { opening: 0, inward: 0, delivered: 0 };
+                appData.stock.warehouse[prod].opening = val;
+            });
+
+            saveData();
+            alert('प्रारंभिक स्टॉक सुरक्षित हो गया!');
+            renderDashboard();
+        }
+
+        function addVillage() {
+            const val = document.getElementById('new_village_name').value.trim();
+            if (val && !appData.villages.includes(val)) {
+                appData.villages.push(val);
+                document.getElementById('new_village_name').value = '';
+                saveData(); renderSettings();
+            }
+        }
+
+        function removeVillage(idx) {
+            if (confirm('क्या आप इस गांव को हटाना चाहते हैं?')) {
+                appData.villages.splice(idx, 1);
+                saveData(); renderSettings();
+            }
+        }
+
+        function updatePasswords() {
+            const a = document.getElementById('sys_admin_pass').value.trim();
+            const o = document.getElementById('sys_off_pass').value.trim();
+            const w = document.getElementById('sys_wh_pass').value.trim();
+
+            if (a && o && w) {
+                appData.passwords.settings = a;
+                appData.passwords.office = o;
+                appData.passwords.warehouse = w;
+                saveData(); alert('पासवर्ड सुरक्षित हो गए!');
+            }
+        }
+
+        function downloadBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `PACS_Sawlmendha_Backup_${new Date().toISOString().slice(0,10)}.json`);
+            dlAnchorElem.click();
+        }
+
+        function restoreBackup(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.passwords && parsed.stock) {
+                        appData = parsed; saveData(); alert('डेटा रीस्टोर होकर सिंक हो गया!'); location.reload();
+                    } else alert('अमान्य फाइल!');
+                } catch(err) { alert('फाइल पढ़ने में त्रुटि!'); }
+            };
+            fileReader.readAsText(event.target.files[0]);
+        }
+    </script>
+</body>
+</html>
