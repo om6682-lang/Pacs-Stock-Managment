@@ -205,13 +205,7 @@
         <div id="page-warehouse" class="hidden space-y-6">
             <div class="bg-amber-50 border-l-4 border-amber-600 p-4 rounded-xl flex justify-between items-center">
                 <div><h2 style="color:#b45309; font-size:16px;">गोदाम स्तर पर भौतिक डिलीवरी एंट्री</h2><p style="font-size:11px; color:#d97706;">भौतिक खाद की सुपुर्दगी दर्ज करें</p></div>
-                <div style="display:flex; gap:6px;">
-                    <!-- 🔥 BULK "गोदाम में भेजें" BUTTON -->
-                    <button onclick="sendAllDeliveredBackToWarehouse()" class="btn btn-amber" style="padding:4px 10px; font-size:11px; background:#d97706;" title="जिन्हें 'गोदाम में भेजें' लिखा है उन सभी को एक साथ गोदाम पेंडिंग में भेजें">
-                        <i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें
-                    </button>
-                    <button onclick="lockModule('warehouse')" class="btn btn-red" style="padding:3px 8px; font-size:10px;"><i class="fa-solid fa-lock"></i> लॉक करें</button>
-                </div>
+                <button onclick="lockModule('warehouse')" class="btn btn-red" style="padding:3px 8px; font-size:10px;"><i class="fa-solid fa-lock"></i> लॉक करें</button>
             </div>
 
             <div class="card">
@@ -339,10 +333,6 @@
             <div class="card" style="padding:0; overflow:hidden;">
                 <div style="background:#1e293b; color:white; padding:8px 12px; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
                     <span>📋 सम्पूर्ण जावक/किसान वितरण रजिस्टर (Outward Register)</span>
-                    <!-- 🔥 BULK "गोदाम में भेजें" BUTTON IN REPORT HEADER -->
-                    <button onclick="sendAllDeliveredBackToWarehouse()" class="btn btn-amber no-print" style="padding:3px 8px; font-size:11px; background:#d97706;" title="जिन पर 'गोदाम में भेजें' लिखा है उन सभी को 1-क्लिक में गोदाम में भेजें">
-                        <i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें
-                    </button>
                 </div>
                 <div style="padding:10px; overflow-x:auto;"><table id="fullReportTable"><thead><tr><th>दिनांक</th><th>वाउचर</th><th>किसान</th><th>ग्राम</th><th>विवरण</th><th>स्थिति</th><th style="text-align:center;" class="no-print">कार्रवाई</th></tr></thead><tbody id="fullReportBody"></tbody></table></div>
             </div>
@@ -653,36 +643,6 @@
             }
         }
 
-        // 🔥 1-CLICK BULK BUTTON: SENDS ALL VOUCHERS WHERE "गोदाम में भेजें" IS SHOWING BACK TO WAREHOUSE PENDING LIST
-        function sendAllDeliveredBackToWarehouse() {
-            if (!appData.vouchers || appData.vouchers.length === 0) {
-                alert("कोई वाउचर उपलब्ध नहीं है!");
-                return;
-            }
-
-            let resetCount = 0;
-            appData.vouchers.forEach(v => {
-                const hasDelivered = v.items && v.items.some(i => (parseInt(i.deliveredQty) || 0) > 0);
-                if (hasDelivered) {
-                    v.items.forEach(i => {
-                        i.deliveredQty = 0; // Reset warehouse delivery to 0
-                    });
-                    v.status = 'PENDING';
-                    delete v.lastDeliveryDate;
-                    resetCount++;
-                }
-            });
-
-            if (resetCount === 0) {
-                alert("कोई भी ऐसा वाउचर नहीं मिला जिसे गोदाम में भेजना हो। सभी पहले से पेंडिंग हैं!");
-                return;
-            }
-
-            saveData();
-            alert(`✅ सफलता! कुल ${resetCount} वाउचरों को एक साथ 'गोदाम पेंडिंग लिस्ट' में भेज दिया गया है! अब सभी किसान गोदाम सेक्शन में दिखेंगे।`);
-            refreshActiveView();
-        }
-
         function autoMigrateExistingInwardStock() {
             if (!appData.inwardLogs) appData.inwardLogs = [];
             if (appData.inwardLogs.length === 0) {
@@ -923,7 +883,7 @@
             if(!appData.vouchers) appData.vouchers = [];
             appData.vouchers.push({ id: Date.now(), farmer: farmer, voucherNo: voucher, village: village, date: entryDateVal, items: items, status: 'PENDING' });
             saveData();
-            alert(`वाउचर सेव हुआ और गोदाम पेंडिंग में भेज दिया गया!`);
+            alert(`वाउचर किसान "${farmer}" के नाम से सेव हुआ और गोदाम में भेज दिया गया!`);
             document.getElementById('officeEntryForm').reset();
             prepareOfficeForm();
         }
@@ -1237,7 +1197,7 @@
                                 }
                             }
 
-                            if (qty > 0) items.push({ product: prod, issuedQty: qty, deliveredQty: 0 }); // Delivered qty = 0 initially for warehouse
+                            if (qty > 0) items.push({ product: prod, issuedQty: qty, deliveredQty: 0 }); // Delivered Qty = 0 initially so it ALWAYS goes to Warehouse Pending list!
                         });
 
                         if (items.length > 0) {
@@ -1256,7 +1216,7 @@
                     });
 
                     saveData();
-                    alert(`🎉 सफलता! कुल ${count} परमिट/वाउचर एक साथ अपलोड हो गए हैं और गोदाम पेंडिंग में भेज दिए गए हैं!`);
+                    alert(`🎉 सफलता! कुल ${count} परमिट एक साथ कार्यालय में अपलोड हो गए हैं और गोदाम पेंडिंग में भेज दिए गए हैं!`);
                     document.getElementById('bulkExcelFileInput').value = '';
                     refreshActiveView();
 
