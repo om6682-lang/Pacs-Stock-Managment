@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PACS Sawlmendha - खाद प्रबंधन प्रणाली</title>
-    <!-- Ultra-Light Fast FontAwesome, SheetJS & Firebase -->
+    <!-- Ultra Fast CSS & Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <!-- Super-Fast Custom CSS (No Heavy Tailwind CDN) -->
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
@@ -53,13 +52,13 @@
         footer { background: #1e293b; color: #94a3b8; text-align: center; padding: 10px; font-size: 11px; border-top: 1px solid #334155; }
         .hidden { display: none !important; }
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; padding: 14px; z-50; }
-        .modal-box { background: white; border-radius: 10px; max-width: 550px; width: 100%; padding: 16px; max-height: 90vh; overflow-y-auto; }
+        .modal-box { background: white; border-radius: 10px; max-width: 550px; width: 100%; padding: 16px; max-height: 90vh; overflow-y: auto; }
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
     </style>
 </head>
 <body>
 
-    <!-- 🛑 STARTUP APP MASTER LOCK OVERLAY -->
+    <!-- STARTUP APP MASTER LOCK OVERLAY -->
     <div id="appMasterLockModal" class="modal" style="background:#0f172a; z-index:99999;">
         <div class="modal-box" style="max-width:360px; text-align:center; padding:24px;">
             <div style="font-size:36px; color:#10b981; margin-bottom:8px;"><i class="fa-solid fa-shield-halved"></i></div>
@@ -114,7 +113,7 @@
                         <span style="font-size: 11px; font-weight: 700; color: #065f46;">दिनांक अनुसार:</span>
                         <input type="date" id="dash_from_date" style="width: auto; padding: 3px 6px;">
                         <input type="date" id="dash_to_date" style="width: auto; padding: 3px 6px;">
-                        <button onclick="applyDashboardDateFilter()" class="btn btn-emerald" style="padding:4px 8px;">फ़िल्टर</button>
+                        <button onclick="applyDashboardDateFilter()" class="btn btn-emerald" style="padding:4px 8px;">फ़िल्टर देखें</button>
                         <button onclick="clearDashboardDateFilter()" class="btn btn-gray" style="padding:4px 8px;">रीसेट</button>
                     </div>
                 </div>
@@ -148,7 +147,7 @@
             <div class="card" style="background:#eff6ff; border-left:4px solid #2563eb;">
                 <div class="card-hdr" style="border:none; margin:0; padding:0;">
                     <div><h2 style="color:#1e40af; font-size:16px;">कार्यालय स्तर पर एंट्री (इश्यू वाउचर)</h2><p style="font-size:11px; color:#3b82f6;">किसान के नाम पर खाद आवंटन दर्ज करें</p></div>
-                    <button onclick="lockModule('office')" class="btn btn-red" style="padding:3px 8px; font-size:10px;"><i class="fa-solid fa-lock"></i> लॉक</button>
+                    <button onclick="lockModule('office')" class="btn btn-red" style="padding:3px 8px; font-size:10px;"><i class="fa-solid fa-lock"></i> लॉक करें</button>
                 </div>
             </div>
 
@@ -159,7 +158,7 @@
                         <div>
                             <div style="display:flex; justify-between; align-items:center; margin-bottom:2px;">
                                 <label style="margin:0;">2. किसान का नाम *</label>
-                                <button type="button" onclick="autoConvertFarmerName('off_farmer_name')" class="btn btn-blue" style="padding:1px 5px; font-size:9px;">🇮🇳 हिन्दी</button>
+                                <button type="button" onclick="autoConvertFarmerName('off_farmer_name')" class="btn btn-blue" style="padding:1px 5px; font-size:9px;">🇮🇳 हिन्दी में बदलें</button>
                             </div>
                             <input type="text" id="off_farmer_name" onblur="autoConvertFarmerName('off_farmer_name')" required placeholder="उदा. Ramlal Sharma">
                         </div>
@@ -171,7 +170,7 @@
                         <h3 style="font-size:12px; font-weight:700; margin-bottom:6px;">खाद विवरण एवं स्टॉक आवंटन:</h3>
                         <div style="overflow-x:auto;">
                             <table>
-                                <thead><tr><th>प्रोडक्ट</th><th style="text-align:center;">उपलब्ध शेष</th><th style="text-align:center;">वितरण मात्रा (बैग)</th></tr></thead>
+                                <thead><tr><th>प्रोडक्ट</th><th style="text-align:center;">कार्यालय उपलब्ध शेष</th><th style="text-align:center;">वितरण मात्रा (बैग)</th></tr></thead>
                                 <tbody id="officeProductAllocationRows"></tbody>
                             </table>
                         </div>
@@ -204,10 +203,14 @@
 
         <!-- 3. WAREHOUSE ENTRY PAGE -->
         <div id="page-warehouse" class="hidden space-y-6">
-            <div class="card" style="background:#fffbeb; border-left:4px solid #d97706;">
-                <div class="card-hdr" style="border:none; margin:0; padding:0;">
-                    <div><h2 style="color:#b45309; font-size:16px;">गोदाम स्तर पर भौतिक डिलीवरी एंट्री</h2><p style="font-size:11px; color:#d97706;">भौतिक खाद की सुपुर्दगी दर्ज करें</p></div>
-                    <button onclick="lockModule('warehouse')" class="btn btn-red" style="padding:3px 8px; font-size:10px;"><i class="fa-solid fa-lock"></i> लॉक</button>
+            <div class="bg-amber-50 border-l-4 border-amber-600 p-4 rounded-xl flex justify-between items-center">
+                <div><h2 style="color:#b45309; font-size:16px;">गोदाम स्तर पर भौतिक डिलीवरी एंट्री</h2><p style="font-size:11px; color:#d97706;">भौतिक खाद की सुपुर्दगी दर्ज करें</p></div>
+                <div style="display:flex; gap:6px;">
+                    <!-- 🔥 BULK "गोदाम में भेजें" BUTTON -->
+                    <button onclick="sendAllDeliveredBackToWarehouse()" class="btn btn-amber" style="padding:4px 10px; font-size:11px; background:#d97706;" title="जिन्हें 'गोदाम में भेजें' लिखा है उन सभी को एक साथ गोदाम पेंडिंग में भेजें">
+                        <i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें
+                    </button>
+                    <button onclick="lockModule('warehouse')" class="btn btn-red" style="padding:3px 8px; font-size:10px;"><i class="fa-solid fa-lock"></i> लॉक करें</button>
                 </div>
             </div>
 
@@ -334,7 +337,13 @@
             </div>
 
             <div class="card" style="padding:0; overflow:hidden;">
-                <div style="background:#1e293b; color:white; padding:8px 12px; font-weight:700;">📋 सम्पूर्ण जावक/किसान वितरण रजिस्टर (Outward Register)</div>
+                <div style="background:#1e293b; color:white; padding:8px 12px; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📋 सम्पूर्ण जावक/किसान वितरण रजिस्टर (Outward Register)</span>
+                    <!-- 🔥 BULK "गोदाम में भेजें" BUTTON IN REPORT HEADER -->
+                    <button onclick="sendAllDeliveredBackToWarehouse()" class="btn btn-amber no-print" style="padding:3px 8px; font-size:11px; background:#d97706;" title="जिन पर 'गोदाम में भेजें' लिखा है उन सभी को 1-क्लिक में गोदाम में भेजें">
+                        <i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें
+                    </button>
+                </div>
                 <div style="padding:10px; overflow-x:auto;"><table id="fullReportTable"><thead><tr><th>दिनांक</th><th>वाउचर</th><th>किसान</th><th>ग्राम</th><th>विवरण</th><th>स्थिति</th><th style="text-align:center;" class="no-print">कार्रवाई</th></tr></thead><tbody id="fullReportBody"></tbody></table></div>
             </div>
 
@@ -351,7 +360,7 @@
                 <button onclick="lockModule('settings')" class="btn btn-red"><i class="fa-solid fa-lock"></i> सेटिंग्स लॉक</button>
             </div>
 
-            <!-- BULK EXCEL UPLOAD BOX -->
+            <!-- BULK EXCEL UPLOAD -->
             <div style="background: linear-gradient(to right, #1e3a8a, #312e81); color: white; padding: 14px; border-radius: 10px; border: 1px solid #1d4ed8;">
                 <div style="display:flex; justify-between; align-items:center; border-bottom:1px solid #1d4ed8; padding-bottom:6px; margin-bottom:6px;">
                     <h3 style="font-weight:700; font-size:15px;"><i class="fa-solid fa-file-excel text-green-400"></i> Excel फ़ाइल से 2000+ परमिट एक साथ अपलोड करें</h3>
@@ -400,7 +409,7 @@
 
             <div class="grid grid-2">
                 <div class="card">
-                    <h3 style="margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; font-size:13px;">गांव जोड़े / हटाएं</h3>
+                    <h3 style="margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; font-size:13px;">गांव जोड़े / बनाएं</h3>
                     <div style="display:flex; gap:8px; margin-bottom:8px;"><input type="text" id="new_village_name" placeholder="गांव नाम"><button onclick="addVillage()" class="btn btn-emerald">जोड़ें</button></div>
                     <ul id="village_list_ul" style="max-height:160px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;"></ul>
                 </div>
@@ -451,7 +460,7 @@
             <div class="grid grid-2" style="margin-bottom:10px;">
                 <div><label>दिनांक *</label><input type="date" id="edit_v_date"></div>
                 <div>
-                    <div style="display:flex; justify-content:space-between;"><label>किसान का नाम *</label><button type="button" onclick="autoConvertFarmerName('edit_v_farmer')" class="btn btn-blue" style="padding:1px 4px; font-size:9px;">🇮🇳 हिन्दी</button></div>
+                    <div style="display:flex; justify-between;"><label>किसान का नाम *</label><button type="button" onclick="autoConvertFarmerName('edit_v_farmer')" class="btn btn-blue" style="padding:1px 4px; font-size:9px;">🇮🇳 हिन्दी</button></div>
                     <input type="text" id="edit_v_farmer" onblur="autoConvertFarmerName('edit_v_farmer')">
                 </div>
                 <div><label>वाउचर नंबर *</label><input type="text" id="edit_v_voucherno"></div>
@@ -489,6 +498,7 @@
         </div>
     </div>
 
+    <!-- Application Logic -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyC4crp3VCQxh8drPW_vVwkLCkv1AHiBFhU",
@@ -510,7 +520,6 @@
             isFirebaseConnected = true;
         } catch(e) { console.warn("Firebase Init Exception:", e); }
 
-        // Master App Startup Lock Functions
         function checkAppMasterLock() {
             const isUnlocked = sessionStorage.getItem('pacs_app_unlocked');
             if (isUnlocked === 'true') {
@@ -642,6 +651,36 @@
                 recalculateStockTotals();
                 refreshActiveView();
             }
+        }
+
+        // 🔥 1-CLICK BULK BUTTON: SENDS ALL VOUCHERS WHERE "गोदाम में भेजें" IS SHOWING BACK TO WAREHOUSE PENDING LIST
+        function sendAllDeliveredBackToWarehouse() {
+            if (!appData.vouchers || appData.vouchers.length === 0) {
+                alert("कोई वाउचर उपलब्ध नहीं है!");
+                return;
+            }
+
+            let resetCount = 0;
+            appData.vouchers.forEach(v => {
+                const hasDelivered = v.items && v.items.some(i => (parseInt(i.deliveredQty) || 0) > 0);
+                if (hasDelivered) {
+                    v.items.forEach(i => {
+                        i.deliveredQty = 0; // Reset warehouse delivery to 0
+                    });
+                    v.status = 'PENDING';
+                    delete v.lastDeliveryDate;
+                    resetCount++;
+                }
+            });
+
+            if (resetCount === 0) {
+                alert("कोई भी ऐसा वाउचर नहीं मिला जिसे गोदाम में भेजना हो। सभी पहले से पेंडिंग हैं!");
+                return;
+            }
+
+            saveData();
+            alert(`✅ सफलता! कुल ${resetCount} वाउचरों को एक साथ 'गोदाम पेंडिंग लिस्ट' में भेज दिया गया है! अब सभी किसान गोदाम सेक्शन में दिखेंगे।`);
+            refreshActiveView();
         }
 
         function autoMigrateExistingInwardStock() {
@@ -884,7 +923,7 @@
             if(!appData.vouchers) appData.vouchers = [];
             appData.vouchers.push({ id: Date.now(), farmer: farmer, voucherNo: voucher, village: village, date: entryDateVal, items: items, status: 'PENDING' });
             saveData();
-            alert(`वाउचर किसान "${farmer}" के नाम से सेव हुआ!`);
+            alert(`वाउचर सेव हुआ और गोदाम पेंडिंग में भेज दिया गया!`);
             document.getElementById('officeEntryForm').reset();
             prepareOfficeForm();
         }
@@ -893,7 +932,7 @@
             filterWarehouseVouchers();
             const whRecBody = document.getElementById('recentWarehouseVouchersBody'); whRecBody.innerHTML = '';
             if(appData.vouchers) {
-                const deliveredList = appData.vouchers.filter(v => v.items.some(i => i.deliveredQty > 0)).slice(-30).reverse();
+                const deliveredList = appData.vouchers.filter(v => v.items.some(i => (parseInt(i.deliveredQty)||0) > 0)).slice(-30).reverse();
                 if(deliveredList.length > 0) {
                     deliveredList.forEach(v => {
                         whRecBody.innerHTML += `<tr><td>${formatDisplayDate(v.lastDeliveryDate || v.date)}</td><td style="font-weight:700;">${v.voucherNo}</td><td style="font-weight:600; color:#b45309;">${v.farmer}</td><td>${v.village}</td><td>${v.items.map(i=>`${i.product}:${i.deliveredQty}/${i.issuedQty}`).join(', ')}</td><td style="text-align:center;"><button onclick="revertToWarehousePending(${v.id})" class="btn btn-amber" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-rotate-left"></i> रद्द करें</button> <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> सुधार</button></td></tr>`;
@@ -911,7 +950,8 @@
             let count = 0;
             if(appData.vouchers) {
                 appData.vouchers.forEach(v => {
-                    if (v.items.some(i => i.issuedQty > i.deliveredQty)) {
+                    const hasPendingItem = v.items.some(i => (parseInt(i.issuedQty)||0) > (parseInt(i.deliveredQty)||0));
+                    if (hasPendingItem) {
                         const mText = !searchText || v.farmer.toLowerCase().includes(searchText) || v.voucherNo.toLowerCase().includes(searchText) || v.village.toLowerCase().includes(searchText);
                         const mDate = !searchDate || (v.date === searchDate);
                         if (mText && mDate) {
@@ -947,9 +987,9 @@
 
             const tbody = document.getElementById('wh_item_table_body'); tbody.innerHTML = '';
             vObj.items.forEach((item, index) => {
-                const rem = item.issuedQty - item.deliveredQty;
+                const rem = (parseInt(item.issuedQty)||0) - (parseInt(item.deliveredQty)||0);
                 if (rem > 0) {
-                    tbody.innerHTML += `<tr><td style="font-weight:600;">${item.product}</td><td style="text-align:center;">${item.issuedQty}</td><td style="text-align:center; color:#15803d;">${item.deliveredQty}</td><td style="text-align:center; font-weight:700; color:#dc2626;">${rem}</td><td style="text-align:center;"><input type="number" min="0" max="${rem}" data-item-idx="${index}" value="${rem}" class="wh-deliv-qty" style="width:100px; text-align:center; font-weight:700; background:#fef3c7;" required></td></tr>`;
+                    tbody.innerHTML += `<tr><td style="font-weight:600;">${item.product}</td><td style="text-align:center;">${item.issuedQty}</td><td style="text-align:center; color:#15803d;">${item.deliveredQty || 0}</td><td style="text-align:center; font-weight:700; color:#dc2626;">${rem}</td><td style="text-align:center;"><input type="number" min="0" max="${rem}" data-item-idx="${index}" value="${rem}" class="wh-deliv-qty" style="width:100px; text-align:center; font-weight:700; background:#fef3c7;" required></td></tr>`;
                 }
             });
             box.classList.remove('hidden');
@@ -966,12 +1006,12 @@
             document.querySelectorAll('.wh-deliv-qty').forEach(inp => {
                 const idx = parseInt(inp.getAttribute('data-item-idx'));
                 const qty = parseInt(inp.value) || 0;
-                if (qty > 0) { deliveredAny = true; vObj.items[idx].deliveredQty += qty; }
+                if (qty > 0) { deliveredAny = true; vObj.items[idx].deliveredQty = (parseInt(vObj.items[idx].deliveredQty)||0) + qty; }
             });
 
             if (!deliveredAny) return alert('कृपया डिलीवरी मात्रा दर्ज करें!');
             vObj.lastDeliveryDate = delivDateVal;
-            vObj.status = vObj.items.every(i => i.issuedQty === i.deliveredQty) ? 'COMPLETED' : 'PARTIAL';
+            vObj.status = vObj.items.every(i => (parseInt(i.issuedQty)||0) === (parseInt(i.deliveredQty)||0)) ? 'COMPLETED' : 'PARTIAL';
             saveData();
             alert('गोदाम सुपुर्दगी दर्ज कर ली गई है!');
             prepareWarehouseForm();
@@ -1197,7 +1237,7 @@
                                 }
                             }
 
-                            if (qty > 0) items.push({ product: prod, issuedQty: qty, deliveredQty: 0 });
+                            if (qty > 0) items.push({ product: prod, issuedQty: qty, deliveredQty: 0 }); // Delivered qty = 0 initially for warehouse
                         });
 
                         if (items.length > 0) {
@@ -1216,7 +1256,7 @@
                     });
 
                     saveData();
-                    alert(`🎉 सफलता! कुल ${count} परमिट/वाउचर एक साथ अपलोड हो गए हैं!`);
+                    alert(`🎉 सफलता! कुल ${count} परमिट/वाउचर एक साथ अपलोड हो गए हैं और गोदाम पेंडिंग में भेज दिए गए हैं!`);
                     document.getElementById('bulkExcelFileInput').value = '';
                     refreshActiveView();
 
@@ -1250,14 +1290,14 @@
 
                 filteredVouchers.slice(-40).reverse().forEach(v => {
                     v.items.forEach(i => {
-                        const pending = i.issuedQty - i.deliveredQty;
+                        const pending = (parseInt(i.issuedQty)||0) - (parseInt(i.deliveredQty)||0);
                         if (pending > 0) {
-                            pendingBody.innerHTML += `<tr><td style="font-weight:600;">${formatDisplayDate(v.date)}</td><td style="font-weight:700; color:#991b1b;">${v.farmer}</td><td>${v.voucherNo}</td><td>${v.village}</td><td style="font-weight:600;">${i.product}</td><td style="text-align:center;">${i.issuedQty}</td><td style="text-align:center; color:#15803d;">${i.deliveredQty}</td><td style="text-align:center; font-weight:700; color:#dc2626; background:#fee2e2;">${pending} बैग</td></tr>`;
+                            pendingBody.innerHTML += `<tr><td style="font-weight:600;">${formatDisplayDate(v.date)}</td><td style="font-weight:700; color:#991b1b;">${v.farmer}</td><td>${v.voucherNo}</td><td>${v.village}</td><td style="font-weight:600;">${i.product}</td><td style="text-align:center;">${i.issuedQty}</td><td style="text-align:center; color:#15803d;">${i.deliveredQty || 0}</td><td style="text-align:center; font-weight:700; color:#dc2626; background:#fee2e2;">${pending} बैग</td></tr>`;
                         }
                     });
 
-                    const hasDelivered = v.items.some(i => i.deliveredQty > 0);
-                    fullBody.innerHTML += `<tr><td>${v.lastDeliveryDate ? `${formatDisplayDate(v.date)} (डिलीवरी: ${formatDisplayDate(v.lastDeliveryDate)})` : formatDisplayDate(v.date)}</td><td style="font-weight:700;">${v.voucherNo}</td><td style="font-weight:600;">${v.farmer}</td><td>${v.village}</td><td>${v.items.map(i=>`${i.product}: ${i.deliveredQty}/${i.issuedQty} बैग`).join(', ')}</td><td style="text-align:center;">${v.status === 'COMPLETED' ? '<span class="badge badge-green">पूर्ण</span>' : '<span class="badge badge-amber">बकाया</span>'}</td><td style="text-align:center;" class="no-print">${hasDelivered ? `<button onclick="revertToWarehousePending(${v.id})" class="btn btn-amber" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें</button>` : ''} <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> एडिट</button> <button onclick="deleteOfficeVoucher(${v.id})" class="btn btn-red" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-trash"></i> डिलीट</button></td></tr>`;
+                    const hasDelivered = v.items.some(i => (parseInt(i.deliveredQty)||0) > 0);
+                    fullBody.innerHTML += `<tr><td>${v.lastDeliveryDate ? `${formatDisplayDate(v.date)} (डिलीवरी: ${formatDisplayDate(v.lastDeliveryDate)})` : formatDisplayDate(v.date)}</td><td style="font-weight:700;">${v.voucherNo}</td><td style="font-weight:600;">${v.farmer}</td><td>${v.village}</td><td>${v.items.map(i=>`${i.product}: ${i.deliveredQty||0}/${i.issuedQty} बैग`).join(', ')}</td><td style="text-align:center;">${v.status === 'COMPLETED' ? '<span class="badge badge-green">पूर्ण</span>' : '<span class="badge badge-amber">बकाया</span>'}</td><td style="text-align:center;" class="no-print">${hasDelivered ? `<button onclick="revertToWarehousePending(${v.id})" class="btn btn-amber" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें</button>` : ''} <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> एडिट</button> <button onclick="deleteOfficeVoucher(${v.id})" class="btn btn-red" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-trash"></i> डिलीट</button></td></tr>`;
                 });
             }
 
@@ -1276,7 +1316,7 @@
                     const villVouchers = appData.vouchers ? appData.vouchers.filter(v => v.village === vill) : [];
                     if(villVouchers.length > 0) {
                         let totals = {};
-                        villVouchers.forEach(v => { v.items.forEach(i => { totals[i.product] = (totals[i.product] || 0) + (i.issuedQty || 0); }); });
+                        villVouchers.forEach(v => { v.items.forEach(i => { totals[i.product] = (totals[i.product] || 0) + (parseInt(i.issuedQty) || 0); }); });
                         const summaryStr = Object.keys(totals).map(p => `${p}: ${totals[p]} बैग`).join(', ');
                         villageBody.innerHTML += `<tr><td style="font-weight:700; color:#065f46;">${vill}</td><td style="text-align:center; font-weight:600;">${villVouchers.length} किसान</td><td>${summaryStr}</td></tr>`;
                     }
@@ -1433,7 +1473,7 @@
                 appData.passwords.settings = a;
                 appData.passwords.office = o;
                 appData.passwords.warehouse = w;
-                saveData(); alert('सभी पासवर्ड सुरक्षित हो गए!');
+                saveData(); alert('पासवर्ड सुरक्षित हो गए!');
             }
         }
 
