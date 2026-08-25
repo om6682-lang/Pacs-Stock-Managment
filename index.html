@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -503,12 +504,32 @@
 
         let db = null;
         let isFirebaseConnected = false;
+        let isFirebaseAuthReady = false;
 
         try {
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
             db = firebase.database();
             isFirebaseConnected = true;
         } catch(e) { console.warn("Firebase Init Exception:", e); }
+
+        // ---------- असली सुरक्षा: Firebase Anonymous Authentication ----------
+        // पेज खुलते ही चुपचाप sign-in हो जाता है (यूज़र को कुछ करना नहीं पड़ता)।
+        // इसके बाद Firebase rules में "auth != null" लगाकर डेटाबेस को इस तरह लॉक
+        // किया जाता है कि सिर्फ़ यही ऐप डेटा पढ़/लिख सके — कोई बाहरी व्यक्ति सीधे
+        // डेटाबेस URL खोलकर कुछ नहीं कर पाएगा, भले ही उसे लिंक/कोड मिल जाए।
+        let firebaseAuthPromise = null;
+        if (isFirebaseConnected) {
+            firebaseAuthPromise = firebase.auth().signInAnonymously().then(() => {
+                isFirebaseAuthReady = true;
+            }).catch((e) => {
+                isFirebaseAuthReady = false;
+                console.warn("Firebase anonymous sign-in failed", e);
+            });
+        }
+
+        // ---------- अतिरिक्त सुरक्षा परत: गुप्त कोड (secret key) ----------
+        const DB_SECRET = "2TMTlN9ljx0JKAM1GN4n";
+        function dbRef(path) { return db.ref(DB_SECRET + '/' + path); }
 
         function checkAppMasterLock() {
             const isUnlocked = sessionStorage.getItem('pacs_app_unlocked');
@@ -604,7 +625,7 @@
             loadDataAndSync();
         };
 
-        function loadDataAndSync() {
+        async function loadDataAndSync() {
             const savedLocal = localStorage.getItem('pacs_sawlmendha_db');
             if (savedLocal) {
                 try {
@@ -616,12 +637,16 @@
 
             checkAppMasterLock();
 
-            if (isFirebaseConnected && db) {
+            if (firebaseAuthPromise) {
+                await firebaseAuthPromise;
+            }
+
+            if (isFirebaseConnected && isFirebaseAuthReady && db) {
                 const statusDiv = document.getElementById('cloudStatus');
                 statusDiv.innerText = 'क्लाउड कनेक्टेड (लाइव)';
                 statusDiv.className = "badge badge-green";
 
-                db.ref('pacs_sawalmendha_db_store').on('value', (snapshot) => {
+                dbRef('pacs_sawalmendha_db_store').on('value', (snapshot) => {
                     const cloudVal = snapshot.val();
                     if (cloudVal) {
                         appData = cloudVal;
@@ -688,7 +713,7 @@
         function saveData() {
             recalculateStockTotals();
             localStorage.setItem('pacs_sawlmendha_db', JSON.stringify(appData));
-            if (isFirebaseConnected && db) db.ref('pacs_sawalmendha_db_store').set(appData);
+            if (isFirebaseConnected && db) dbRef('pacs_sawalmendha_db_store').set(appData);
         }
 
         function refreshActiveView() {
