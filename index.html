@@ -320,7 +320,7 @@
 
             <div class="card no-print" style="background:#e2e8f0; padding:10px;">
                 <div class="grid grid-4">
-                    <input type="text" id="rep_search_input" oninput="renderReports()" placeholder="किसान नाम / वाउचर / ग्राम से खोजें...">
+                    <input type="text" id="rep_search_input" oninput="debouncedRenderReports()" placeholder="किसान नाम / वाउचर / ग्राम से खोजें...">
                     <div><label style="margin-bottom:2px;">दिनांक से (From)</label><input type="date" id="rep_from_date"></div>
                     <div><label style="margin-bottom:2px;">दिनांक तक (To)</label><input type="date" id="rep_to_date"></div>
                     <div style="display:flex; gap:6px; align-items:flex-end;">
@@ -1271,6 +1271,14 @@
         // reportDateFilter: {from:'', to:''} — empty means "no limit" i.e. poori (complete) report from start
         let reportDateFilter = { from: '', to: '' };
 
+        // Debounce: search box par har keystroke par turant poori report re-render na ho (isse app hang/slow lagta tha).
+        // Typing rukne ke 250ms baad hi table update hogi — click/typing turant respond karega.
+        let _reportsRenderTimer = null;
+        function debouncedRenderReports() {
+            clearTimeout(_reportsRenderTimer);
+            _reportsRenderTimer = setTimeout(renderReports, 250);
+        }
+
         function applyReportsDateFilter() {
             const f = document.getElementById('rep_from_date').value;
             const t = document.getElementById('rep_to_date').value;
@@ -1334,7 +1342,6 @@
 
         function renderReports() {
             const pendingBody = document.getElementById('pendingReportBody'), inwardBody = document.getElementById('inwardReportBody'), fullBody = document.getElementById('fullReportBody'), villageBody = document.getElementById('villageReportBody'), dateWiseBody = document.getElementById('dateWiseReportBody');
-            pendingBody.innerHTML = ''; inwardBody.innerHTML = ''; fullBody.innerHTML = ''; villageBody.innerHTML = ''; dateWiseBody.innerHTML = '';
 
             const rangeLabel = document.getElementById('rep_range_label');
             if (reportDateFilter.from || reportDateFilter.to) {
@@ -1343,7 +1350,12 @@
                 rangeLabel.textContent = 'कोई दिनांक चयनित नहीं — सम्पूर्ण (शुरू से अब तक) डेटा दिखाया जा रहा है';
             }
 
-            // NOTE: full data is shown below — no slice()/limit is applied, so the report is always complete, never partial.
+            // PERFORMANCE: build rows in plain arrays and set innerHTML ONCE at the end for each table.
+            // (Using body.innerHTML += inside a loop re-parses the whole table every single row, which
+            // becomes very slow / makes the app feel like it "hangs" once the data grows — this avoids that.)
+            const pendingRows = [], fullRows = [], inwardRows = [], villageRows = [], dateWiseRows = [];
+
+            // NOTE: full data is used below — no slice()/limit is applied, so the report is always complete, never partial.
             const filteredVouchers = getReportFilteredVouchers();
             const orderedVouchers = filteredVouchers.slice().reverse();
 
@@ -1351,20 +1363,18 @@
                 v.items.forEach(i => {
                     const pending = (parseInt(i.issuedQty)||0) - (parseInt(i.deliveredQty)||0);
                     if (pending > 0) {
-                        pendingBody.innerHTML += `<tr><td style="font-weight:600;">${formatDisplayDate(v.date)}</td><td style="font-weight:700; color:#991b1b;">${v.farmer}</td><td>${v.voucherNo}</td><td>${v.village}</td><td style="font-weight:600;">${i.product}</td><td style="text-align:center;">${i.issuedQty}</td><td style="text-align:center; color:#15803d;">${i.deliveredQty || 0}</td><td style="text-align:center; font-weight:700; color:#dc2626; background:#fee2e2;">${pending} बैग</td></tr>`;
+                        pendingRows.push(`<tr><td style="font-weight:600;">${formatDisplayDate(v.date)}</td><td style="font-weight:700; color:#991b1b;">${v.farmer}</td><td>${v.voucherNo}</td><td>${v.village}</td><td style="font-weight:600;">${i.product}</td><td style="text-align:center;">${i.issuedQty}</td><td style="text-align:center; color:#15803d;">${i.deliveredQty || 0}</td><td style="text-align:center; font-weight:700; color:#dc2626; background:#fee2e2;">${pending} बैग</td></tr>`);
                     }
                 });
 
                 const hasDelivered = v.items.some(i => (parseInt(i.deliveredQty)||0) > 0);
-                fullBody.innerHTML += `<tr><td>${v.lastDeliveryDate ? `${formatDisplayDate(v.date)} (डिलीवरी: ${formatDisplayDate(v.lastDeliveryDate)})` : formatDisplayDate(v.date)}</td><td style="font-weight:700;">${v.voucherNo}</td><td style="font-weight:600;">${v.farmer}</td><td>${v.village}</td><td>${v.items.map(i=>`${i.product}: ${i.deliveredQty||0}/${i.issuedQty} बैग`).join(', ')}</td><td style="text-align:center;">${v.status === 'COMPLETED' ? '<span class="badge badge-green">पूर्ण</span>' : '<span class="badge badge-amber">बकाया</span>'}</td><td style="text-align:center;" class="no-print">${hasDelivered ? `<button onclick="revertToWarehousePending(${v.id})" class="btn btn-amber" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें</button>` : ''} <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> एडिट</button> <button onclick="deleteOfficeVoucher(${v.id})" class="btn btn-red" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-trash"></i> डिलीट</button></td></tr>`;
+                fullRows.push(`<tr><td>${v.lastDeliveryDate ? `${formatDisplayDate(v.date)} (डिलीवरी: ${formatDisplayDate(v.lastDeliveryDate)})` : formatDisplayDate(v.date)}</td><td style="font-weight:700;">${v.voucherNo}</td><td style="font-weight:600;">${v.farmer}</td><td>${v.village}</td><td>${v.items.map(i=>`${i.product}: ${i.deliveredQty||0}/${i.issuedQty} बैग`).join(', ')}</td><td style="text-align:center;">${v.status === 'COMPLETED' ? '<span class="badge badge-green">पूर्ण</span>' : '<span class="badge badge-amber">बकाया</span>'}</td><td style="text-align:center;" class="no-print">${hasDelivered ? `<button onclick="revertToWarehousePending(${v.id})" class="btn btn-amber" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-rotate-left"></i> गोदाम में भेजें</button>` : ''} <button onclick="openEditVoucherModal(${v.id})" class="btn btn-blue" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-pen"></i> एडिट</button> <button onclick="deleteOfficeVoucher(${v.id})" class="btn btn-red" style="padding:2px 6px; font-size:10px;"><i class="fa-solid fa-trash"></i> डिलीट</button></td></tr>`);
             });
 
             const filteredInward = getReportFilteredInward();
-            if (filteredInward.length > 0) {
-                filteredInward.slice().reverse().forEach(log => {
-                    inwardBody.innerHTML += `<tr><td style="font-weight:600;">${formatDisplayDate(log.date)}</td><td>${log.level === 'office' ? 'कार्यालय स्तर' : 'गोदाम स्तर'}</td><td style="font-weight:700;">${log.product}</td><td style="text-align:center; font-weight:700; color:#15803d;">+${log.qty} बैग</td></tr>`;
-                });
-            } else inwardBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:12px;">कोई आवक प्रविष्टि नहीं है।</td></tr>';
+            filteredInward.slice().reverse().forEach(log => {
+                inwardRows.push(`<tr><td style="font-weight:600;">${formatDisplayDate(log.date)}</td><td>${log.level === 'office' ? 'कार्यालय स्तर' : 'गोदाम स्तर'}</td><td style="font-weight:700;">${log.product}</td><td style="text-align:center; font-weight:700; color:#15803d;">+${log.qty} बैग</td></tr>`);
+            });
 
             if (appData.villages) {
                 appData.villages.forEach(vill => {
@@ -1373,27 +1383,28 @@
                         let totals = {};
                         villVouchers.forEach(v => { v.items.forEach(i => { totals[i.product] = (totals[i.product] || 0) + (parseInt(i.issuedQty) || 0); }); });
                         const summaryStr = Object.keys(totals).map(p => `${p}: ${totals[p]} बैग`).join(', ');
-                        villageBody.innerHTML += `<tr><td style="font-weight:700; color:#065f46;">${vill}</td><td style="text-align:center; font-weight:600;">${villVouchers.length} किसान</td><td>${summaryStr}</td></tr>`;
+                        villageRows.push(`<tr><td style="font-weight:700; color:#065f46;">${vill}</td><td style="text-align:center; font-weight:600;">${villVouchers.length} किसान</td><td>${summaryStr}</td></tr>`);
                     }
                 });
             }
 
             // Date-wise: har date ka office (vitran/issued) aur godam (delivered) donon paksh ek saath
             const dwMap = buildDateWiseDistributionMap(filteredVouchers);
-            const sortedDates = Object.keys(dwMap).sort();
-            sortedDates.forEach(d => {
+            Object.keys(dwMap).sort().forEach(d => {
                 const off = dwMap[d].office, wh = dwMap[d].warehouse;
                 const offStr = Object.keys(off).length ? Object.entries(off).map(([p,q]) => `${p}: ${q} बैग`).join(', ') : '-';
                 const whStr = Object.keys(wh).length ? Object.entries(wh).map(([p,q]) => `${p}: ${q} बैग`).join(', ') : '-';
                 const offTotal = Object.values(off).reduce((s,q)=>s+q, 0);
                 const whTotal = Object.values(wh).reduce((s,q)=>s+q, 0);
-                dateWiseBody.innerHTML += `<tr><td style="font-weight:700; white-space:nowrap;">${formatDisplayDate(d)}</td><td>${offStr}</td><td>${whStr}</td><td style="text-align:center; font-weight:700;">${offTotal + whTotal} बैग</td></tr>`;
+                dateWiseRows.push(`<tr><td style="font-weight:700; white-space:nowrap;">${formatDisplayDate(d)}</td><td>${offStr}</td><td>${whStr}</td><td style="text-align:center; font-weight:700;">${offTotal + whTotal} बैग</td></tr>`);
             });
 
-            if(pendingBody.innerHTML === '') pendingBody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#64748b; padding:12px;">कोई बकाया स्टॉक नहीं है।</td></tr>';
-            if(villageBody.innerHTML === '') villageBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#64748b; padding:12px;">कोई ग्राम वितरण डेटा उपलब्ध नहीं है।</td></tr>';
-            if(fullBody.innerHTML === '') fullBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b; padding:12px;">चयनित अवधि हेतु कोई वाउचर उपलब्ध नहीं है।</td></tr>';
-            if(dateWiseBody.innerHTML === '') dateWiseBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:12px;">चयनित अवधि हेतु कोई वितरण डेटा उपलब्ध नहीं है।</td></tr>';
+            // Single innerHTML write per table — fast even with hundreds/thousands of rows.
+            pendingBody.innerHTML = pendingRows.length ? pendingRows.join('') : '<tr><td colspan="8" style="text-align:center; color:#64748b; padding:12px;">कोई बकाया स्टॉक नहीं है।</td></tr>';
+            fullBody.innerHTML = fullRows.length ? fullRows.join('') : '<tr><td colspan="7" style="text-align:center; color:#64748b; padding:12px;">चयनित अवधि हेतु कोई वाउचर उपलब्ध नहीं है।</td></tr>';
+            inwardBody.innerHTML = inwardRows.length ? inwardRows.join('') : '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:12px;">कोई आवक प्रविष्टि नहीं है।</td></tr>';
+            villageBody.innerHTML = villageRows.length ? villageRows.join('') : '<tr><td colspan="3" style="text-align:center; color:#64748b; padding:12px;">कोई ग्राम वितरण डेटा उपलब्ध नहीं है।</td></tr>';
+            dateWiseBody.innerHTML = dateWiseRows.length ? dateWiseRows.join('') : '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:12px;">चयनित अवधि हेतु कोई वितरण डेटा उपलब्ध नहीं है।</td></tr>';
         }
 
         // Filename suffix reflects whether this is a full report or a custom date-range report
