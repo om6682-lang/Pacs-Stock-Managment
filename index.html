@@ -400,6 +400,9 @@
                     <button onclick="addNewProduct()" class="btn" style="background:#7e22ce; color:white;">प्रोडक्ट जोड़ें</button>
                 </div>
                 <div id="product_list_tags" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0;">
+                    <button onclick="checkOrphanData()" class="btn btn-amber" style="font-size:11px;"><i class="fa-solid fa-magnifying-glass"></i> डेटा जांचें (कोई बैग गिनती से बाहर तो नहीं?)</button>
+                </div>
             </div>
 
             <div class="card" style="border-color:#a7f3d0;">
@@ -631,6 +634,100 @@
         let editingInwardId = null;
         let dashboardDateFilter = { from: '', to: '' };
 
+        // ========================================================================
+        // ===============  PERFECT-COUNT ENGINE (डेटा शुद्धिकरण)  ===============
+        // हर जगह (डैशबोर्ड, रिपोर्ट्स, एक्सेल) एक ही "सच्चाई के स्रोत" (single
+        // source of truth) से गिनती हो — इसलिए सारी गिनती इन फंक्शनों से होकर
+        // गुजरती है। नाम में आगे-पीछे स्पेस/खाली जगह हो तो भी बैग न खोएं, और जो
+        // प्रोडक्ट डिलीट कर दिया गया हो उसका डेटा कहीं भी (डैशबोर्ड हो, रिपोर्ट
+        // हो, या Excel) दोबारा न गिना जाए — दोनों जगह एक जैसा नियम।
+        // ========================================================================
+
+        // नाम को सामान्य (trim + एक जैसी स्पेसिंग) रूप में लाना, ताकि "पोटाश" और
+        // "पोटाश " (आगे स्पेस के साथ) एक ही प्रोडक्ट माने जाएं, अलग नहीं।
+        function normName(s) {
+            return (s || '').toString().trim().replace(/\s+/g, ' ');
+        }
+
+        // मौजूदा (active) प्रोडक्ट लिस्ट का सामान्यीकृत सेट — इसमें न होना
+        // मतलब वो प्रोडक्ट डिलीट हो चुका है, इसलिए कहीं भी नहीं गिना जाएगा।
+        function getActiveProductSet() {
+            return new Set((appData.products || []).map(normName));
+        }
+
+        // डेटा में जमा हुई छोटी गड़बड़ियाँ (जैसे नाम के आगे/पीछे स्पेस) खुद
+        // ठीक कर देना — बैग गायब नहीं होंगे, सिर्फ नाम साफ होगा।
+        function sanitizeAppData() {
+            if (!appData.products) appData.products = [];
+            appData.products = appData.products.map(normName).filter((v, i, arr) => v && arr.indexOf(v) === i);
+
+            if (!appData.inwardLogs) appData.inwardLogs = [];
+            appData.inwardLogs.forEach(l => { l.product = normName(l.product); });
+
+            if (!appData.vouchers) appData.vouchers = [];
+            appData.vouchers.forEach(v => {
+                if (v.items) v.items.forEach(i => { i.product = normName(i.product); });
+            });
+
+            if (appData.stock) {
+                ['office', 'warehouse'].forEach(level => {
+                    const cleaned = {};
+                    Object.keys(appData.stock[level] || {}).forEach(k => { cleaned[normName(k)] = appData.stock[level][k]; });
+                    appData.stock[level] = cleaned;
+                });
+            }
+        }
+
+        // कोई भी इनवर्ड लॉग या वाउचर-आइटम जिसका प्रोडक्ट-नाम अब मौजूदा (active)
+        // लिस्ट में नहीं है (यानी डिलीट किया जा चुका है) — उसे हर जगह (रिपोर्ट,
+        // डैशबोर्ड, Excel) से एक समान रूप से बाहर रखने के लिए ये दो फंक्शन।
+        function activeInwardLogs() {
+            const set = getActiveProductSet();
+            return (appData.inwardLogs || []).filter(l => set.has(normName(l.product)));
+        }
+        function vouchersWithOnlyActiveItems() {
+            const set = getActiveProductSet();
+            return (appData.vouchers || [])
+                .map(v => ({ ...v, items: (v.items || []).filter(i => set.has(normName(i.product))) }))
+                .filter(v => v.items.length > 0);
+        }
+
+        // डिलीट किए गए प्रोडक्ट्स के बचे-खुचे (orphan) रिकॉर्ड ढूंढना — ताकि
+        // एडमिन को साफ-साफ पता चले कि किस प्रोडक्ट के कितने बैग "गिनती से बाहर"
+        // पड़े हैं (जैसे नाम की स्पेलिंग गलत होने से)।
+        function findOrphanRecords() {
+            const set = getActiveProductSet();
+            const orphans = {};
+            (appData.inwardLogs || []).forEach(l => {
+                const p = normName(l.product);
+                if (!set.has(p)) { orphans[p] = orphans[p] || { inward: 0, issued: 0, delivered: 0 }; orphans[p].inward += (parseInt(l.qty) || 0); }
+            });
+            (appData.vouchers || []).forEach(v => {
+                (v.items || []).forEach(i => {
+                    const p = normName(i.product);
+                    if (!set.has(p)) {
+                        orphans[p] = orphans[p] || { inward: 0, issued: 0, delivered: 0 };
+                        orphans[p].issued += (parseInt(i.issuedQty) || 0);
+                        orphans[p].delivered += (parseInt(i.deliveredQty) || 0);
+                    }
+                });
+            });
+            return orphans;
+        }
+
+        function checkOrphanData() {
+            const orphans = findOrphanRecords();
+            const names = Object.keys(orphans);
+            if (names.length === 0) { alert('✅ सब ठीक है! कोई भी बैग बिना गिने नहीं है — हर एंट्री किसी न किसी मौजूदा प्रोडक्ट से जुड़ी है।'); return; }
+            let msg = '⚠️ ये एंट्रियां किसी भी मौजूदा (active) प्रोडक्ट से मेल नहीं खातीं, इसलिए डैशबोर्ड/रिपोर्ट में नहीं गिनी जा रहीं:\n\n';
+            names.forEach(n => {
+                const o = orphans[n];
+                msg += `• "${n}"  →  आवक: ${o.inward} बैग, जारी: ${o.issued} बैग, डिलीवर: ${o.delivered} बैग\n`;
+            });
+            msg += '\nसुधार: Settings में जाकर बिल्कुल इसी नाम से एक प्रोडक्ट जोड़ दें (स्पेलिंग बिल्कुल वैसी ही रखें), फिर डेटा अपने-आप जुड़ जाएगा।';
+            alert(msg);
+        }
+
         window.onload = function() {
             document.getElementById('currentDateDisplay').innerText = 'दिनांक: ' + new Date().toLocaleDateString('hi-IN');
             const todayStr = getTodayYYYYMMDD();
@@ -647,6 +744,7 @@
                     appData = JSON.parse(savedLocal);
                     if(!appData.inwardLogs) appData.inwardLogs = [];
                     if(!appData.passwords.master) appData.passwords.master = '9999';
+                    sanitizeAppData();
                 } catch(e){}
             }
 
@@ -667,6 +765,7 @@
                         appData = cloudVal;
                         if(!appData.inwardLogs) appData.inwardLogs = [];
                         if(!appData.passwords.master) appData.passwords.master = '9999';
+                        sanitizeAppData();
                         localStorage.setItem('pacs_sawlmendha_db', JSON.stringify(appData));
                         autoMigrateExistingInwardStock();
                         recalculateStockTotals();
@@ -677,6 +776,7 @@
                     } else saveData();
                 });
             } else {
+                sanitizeAppData();
                 autoMigrateExistingInwardStock();
                 recalculateStockTotals();
                 refreshActiveView();
@@ -726,6 +826,7 @@
         }
 
         function saveData() {
+            sanitizeAppData();
             recalculateStockTotals();
             localStorage.setItem('pacs_sawlmendha_db', JSON.stringify(appData));
             if (isFirebaseConnected && db) dbRef('pacs_sawalmendha_db_store').set(appData);
@@ -793,48 +894,60 @@
             renderDashboard();
         }
 
+        // ================================================================
+        // SINGLE SOURCE OF TRUTH: यही एक फंक्शन डैशबोर्ड और Excel दोनों में
+        // इस्तेमाल होता है, ताकि दोनों जगह हमेशा हूबहू एक जैसा आंकड़ा आए —
+        // "perfect ganit"। डिलीट किया प्रोडक्ट यहां कभी नहीं आएगा क्योंकि
+        // यह सिर्फ appData.products (मौजूदा active लिस्ट) पर लूप करता है।
+        // ================================================================
+        function computeProductStock(prod, from, to) {
+            const hasDate = !!(from && to);
+            let offOpening = appData.stock.office[prod] ? appData.stock.office[prod].opening : 0;
+            let whOpening = appData.stock.warehouse[prod] ? appData.stock.warehouse[prod].opening : 0;
+            let offInward = 0, whInward = 0, offIssued = 0, whDelivered = 0;
+
+            if (hasDate) {
+                offOpening += appData.inwardLogs.filter(l => l.level === 'office' && normName(l.product) === prod && l.date < from).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+                whOpening += appData.inwardLogs.filter(l => l.level === 'warehouse' && normName(l.product) === prod && l.date < from).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+
+                appData.vouchers.forEach(v => {
+                    if (v.date < from && v.items) v.items.forEach(i => { if (normName(i.product) === prod) offOpening -= (parseInt(i.issuedQty)||0); });
+                    const delivDate = v.lastDeliveryDate || v.date;
+                    if (delivDate < from && v.items) v.items.forEach(i => { if (normName(i.product) === prod) whOpening -= (parseInt(i.deliveredQty)||0); });
+                });
+
+                offInward = appData.inwardLogs.filter(l => l.level === 'office' && normName(l.product) === prod && l.date >= from && l.date <= to).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+                whInward = appData.inwardLogs.filter(l => l.level === 'warehouse' && normName(l.product) === prod && l.date >= from && l.date <= to).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
+
+                appData.vouchers.forEach(v => {
+                    if (v.date >= from && v.date <= to && v.items) v.items.forEach(i => { if (normName(i.product) === prod) offIssued += (parseInt(i.issuedQty)||0); });
+                    const delivDate = v.lastDeliveryDate || v.date;
+                    if (delivDate >= from && delivDate <= to && v.items) v.items.forEach(i => { if (normName(i.product) === prod) whDelivered += (parseInt(i.deliveredQty)||0); });
+                });
+            } else {
+                const offObj = appData.stock.office[prod] || { opening: 0, inward: 0, issued: 0 };
+                const whObj = appData.stock.warehouse[prod] || { opening: 0, inward: 0, delivered: 0 };
+                offOpening = offObj.opening; offInward = offObj.inward; offIssued = offObj.issued;
+                whOpening = whObj.opening; whInward = whObj.inward; whDelivered = whObj.delivered;
+            }
+
+            return {
+                offOpening, offInward, offIssued, offRem: (offOpening + offInward) - offIssued,
+                whOpening, whInward, whDelivered, whRem: (whOpening + whInward) - whDelivered
+            };
+        }
+
         function renderDashboard() {
             const offBody = document.getElementById('officeStockTable'), whBody = document.getElementById('warehouseStockTable');
             offBody.innerHTML = ''; whBody.innerHTML = '';
 
             const hasDate = (dashboardDateFilter.from && dashboardDateFilter.to);
+            const from = dashboardDateFilter.from, to = dashboardDateFilter.to;
 
             appData.products.forEach(prod => {
-                let offOpening = appData.stock.office[prod] ? appData.stock.office[prod].opening : 0;
-                let whOpening = appData.stock.warehouse[prod] ? appData.stock.warehouse[prod].opening : 0;
-                let offInward = 0, whInward = 0, offIssued = 0, whDelivered = 0;
-
-                if (hasDate) {
-                    const from = dashboardDateFilter.from, to = dashboardDateFilter.to;
-                    offOpening += appData.inwardLogs.filter(l => l.level === 'office' && l.product === prod && l.date < from).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
-                    whOpening += appData.inwardLogs.filter(l => l.level === 'warehouse' && l.product === prod && l.date < from).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
-
-                    appData.vouchers.forEach(v => {
-                        if (v.date < from && v.items) v.items.forEach(i => { if (i.product === prod) offOpening -= (parseInt(i.issuedQty)||0); });
-                        const delivDate = v.lastDeliveryDate || v.date;
-                        if (delivDate < from && v.items) v.items.forEach(i => { if (i.product === prod) whOpening -= (parseInt(i.deliveredQty)||0); });
-                    });
-
-                    offInward = appData.inwardLogs.filter(l => l.level === 'office' && l.product === prod && l.date >= from && l.date <= to).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
-                    whInward = appData.inwardLogs.filter(l => l.level === 'warehouse' && l.product === prod && l.date >= from && l.date <= to).reduce((s, l) => s + (parseInt(l.qty)||0), 0);
-
-                    appData.vouchers.forEach(v => {
-                        if (v.date >= from && v.date <= to && v.items) v.items.forEach(i => { if (i.product === prod) offIssued += (parseInt(i.issuedQty)||0); });
-                        const delivDate = v.lastDeliveryDate || v.date;
-                        if (delivDate >= from && delivDate <= to && v.items) v.items.forEach(i => { if (i.product === prod) whDelivered += (parseInt(i.deliveredQty)||0); });
-                    });
-                } else {
-                    const offObj = appData.stock.office[prod] || { opening: 0, inward: 0, issued: 0 };
-                    const whObj = appData.stock.warehouse[prod] || { opening: 0, inward: 0, delivered: 0 };
-                    offOpening = offObj.opening; offInward = offObj.inward; offIssued = offObj.issued;
-                    whOpening = whObj.opening; whInward = whObj.inward; whDelivered = whObj.delivered;
-                }
-
-                const offRem = (offOpening + offInward) - offIssued;
-                const whRem = (whOpening + whInward) - whDelivered;
-
-                offBody.innerHTML += `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;">${offOpening} बैग</td><td style="text-align:center; color:#15803d; font-weight:700;">+${offInward} बैग</td><td style="text-align:center; color:#1d4ed8; font-weight:700;">-${offIssued} बैग</td><td style="text-align:center; font-weight:800; background:#dbeafe; color:#1e40af;">${offRem} बैग</td></tr>`;
-                whBody.innerHTML += `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;">${whOpening} बैग</td><td style="text-align:center; color:#15803d; font-weight:700;">+${whInward} बैग</td><td style="text-align:center; color:#b45309; font-weight:700;">-${whDelivered} बैग</td><td style="text-align:center; font-weight:800; background:#fef3c7; color:#92400e;">${whRem} बैग</td></tr>`;
+                const s = computeProductStock(prod, hasDate ? from : null, hasDate ? to : null);
+                offBody.innerHTML += `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;">${s.offOpening} बैग</td><td style="text-align:center; color:#15803d; font-weight:700;">+${s.offInward} बैग</td><td style="text-align:center; color:#1d4ed8; font-weight:700;">-${s.offIssued} बैग</td><td style="text-align:center; font-weight:800; background:#dbeafe; color:#1e40af;">${s.offRem} बैग</td></tr>`;
+                whBody.innerHTML += `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;">${s.whOpening} बैग</td><td style="text-align:center; color:#15803d; font-weight:700;">+${s.whInward} बैग</td><td style="text-align:center; color:#b45309; font-weight:700;">-${s.whDelivered} बैग</td><td style="text-align:center; font-weight:800; background:#fef3c7; color:#92400e;">${s.whRem} बैग</td></tr>`;
             });
         }
 
@@ -1046,10 +1159,19 @@
             const vSel = document.getElementById('edit_v_village'); vSel.innerHTML = '';
             appData.villages.forEach(v => vSel.innerHTML += `<option value="${v}" ${v === vObj.village ? 'selected' : ''}>${v}</option>`);
 
+            // PERFECT-COUNT: सिर्फ मौजूदा प्रोडक्ट लिस्ट पर लूप नहीं करते — अगर इस वाउचर
+            // में किसी ऐसे प्रोडक्ट का डेटा है जो बाद में डिलीट हो चुका है, तो वो row भी
+            // दिखाई जाएगी (साफ लेबल के साथ) ताकि Save दबाने पर वो बैग चुपचाप गायब न हों।
+            const activeSet = getActiveProductSet();
+            const voucherProdNames = (vObj.items || []).map(i => normName(i.product));
+            const allProdNames = appData.products.concat(voucherProdNames.filter(p => !activeSet.has(p)));
+
             const tbody = document.getElementById('edit_v_products_body'); tbody.innerHTML = '';
-            appData.products.forEach(prod => {
-                const ex = vObj.items.find(i => i.product === prod) || { issuedQty: 0, deliveredQty: 0 };
-                tbody.innerHTML += `<tr><td style="font-weight:600;">${prod}</td><td style="text-align:center;"><input type="number" min="0" data-prod="${prod}" class="edit-item-issued" style="width:90px; text-align:center; font-weight:700; background:#eff6ff;" value="${ex.issuedQty}"></td><td style="text-align:center;"><input type="number" min="0" data-prod="${prod}" class="edit-item-delivered" style="width:90px; text-align:center; font-weight:700; background:#fef3c7;" value="${ex.deliveredQty}"></td></tr>`;
+            allProdNames.forEach(prod => {
+                const isOrphan = !activeSet.has(prod);
+                const ex = vObj.items.find(i => normName(i.product) === prod) || { issuedQty: 0, deliveredQty: 0 };
+                const label = isOrphan ? `${prod} <span style="color:#dc2626; font-size:10px; font-weight:700;">(हटाया गया प्रोडक्ट)</span>` : prod;
+                tbody.innerHTML += `<tr><td style="font-weight:600;">${label}</td><td style="text-align:center;"><input type="number" min="0" data-prod="${prod}" class="edit-item-issued" style="width:90px; text-align:center; font-weight:700; background:#eff6ff;" value="${ex.issuedQty}"></td><td style="text-align:center;"><input type="number" min="0" data-prod="${prod}" class="edit-item-delivered" style="width:90px; text-align:center; font-weight:700; background:#fef3c7;" value="${ex.deliveredQty}"></td></tr>`;
             });
             document.getElementById('editVoucherModal').classList.remove('hidden');
         }
@@ -1296,10 +1418,12 @@
         }
 
         // Returns vouchers matching current search text + date range (empty range = ALL data, no cutoff)
+        // PERFECT-COUNT: सिर्फ मौजूदा (active) प्रोडक्ट्स के आइटम गिने जाते हैं — डिलीट किया
+        // हुआ प्रोडक्ट कभी भी रिपोर्ट/एक्सेल के टोटल में नहीं जुड़ेगा, ठीक डैशबोर्ड जैसा।
         function getReportFilteredVouchers() {
             const searchText = (document.getElementById('rep_search_input') ? document.getElementById('rep_search_input').value : '').toLowerCase().trim();
             const from = reportDateFilter.from, to = reportDateFilter.to;
-            return (appData.vouchers || []).filter(v => {
+            return vouchersWithOnlyActiveItems().filter(v => {
                 const mText = !searchText || v.farmer.toLowerCase().includes(searchText) || v.voucherNo.toLowerCase().includes(searchText) || v.village.toLowerCase().includes(searchText);
                 const mDate = (!from || v.date >= from) && (!to || v.date <= to);
                 return mText && mDate;
@@ -1307,10 +1431,11 @@
         }
 
         // Returns inward logs matching current search text + date range (empty range = ALL data)
+        // PERFECT-COUNT: डिलीट किए गए प्रोडक्ट का इनवर्ड लॉग यहां शामिल नहीं होगा।
         function getReportFilteredInward() {
             const searchText = (document.getElementById('rep_search_input') ? document.getElementById('rep_search_input').value : '').toLowerCase().trim();
             const from = reportDateFilter.from, to = reportDateFilter.to;
-            return (appData.inwardLogs || []).filter(log => {
+            return activeInwardLogs().filter(log => {
                 const mText = !searchText || log.product.toLowerCase().includes(searchText) || log.level.toLowerCase().includes(searchText);
                 const mDate = (!from || log.date >= from) && (!to || log.date <= to);
                 return mText && mDate;
@@ -1415,20 +1540,24 @@
             return `_Poori_Report_${new Date().toISOString().slice(0,10)}`;
         }
 
+        // PERFECT-COUNT: अगर Reports टैब में दिनांक-फ़िल्टर लगा है, तो Excel की "स्टॉक समरी"
+        // भी उसी अवधि के अनुसार बनेगी — जिससे स्क्रीन और Excel में कभी अंतर नहीं आएगा।
         function buildOfficeStockSummaryAOA() {
+            const hasDate = !!(reportDateFilter.from && reportDateFilter.to);
             const aoa = [["खाद", "प्रारम्भिक", "आवक", "वितरण", "शेष"]];
             appData.products.forEach(prod => {
-                const o = appData.stock.office[prod] || { opening: 0, inward: 0, issued: 0 };
-                aoa.push([prod, o.opening, o.inward, o.issued, (o.opening + o.inward) - o.issued]);
+                const s = computeProductStock(prod, hasDate ? reportDateFilter.from : null, hasDate ? reportDateFilter.to : null);
+                aoa.push([prod, s.offOpening, s.offInward, s.offIssued, s.offRem]);
             });
             return aoa;
         }
 
         function buildWarehouseStockSummaryAOA() {
+            const hasDate = !!(reportDateFilter.from && reportDateFilter.to);
             const aoa = [["खाद", "प्रारम्भिक", "आवक", "वितरण", "शेष (गोदाम)"]];
             appData.products.forEach(prod => {
-                const o = appData.stock.warehouse[prod] || { opening: 0, inward: 0, delivered: 0 };
-                aoa.push([prod, o.opening, o.inward, o.delivered, (o.opening + o.inward) - o.delivered]);
+                const s = computeProductStock(prod, hasDate ? reportDateFilter.from : null, hasDate ? reportDateFilter.to : null);
+                aoa.push([prod, s.whOpening, s.whInward, s.whDelivered, s.whRem]);
             });
             return aoa;
         }
@@ -1627,26 +1756,42 @@
         }
 
         function addNewProduct() {
-            const name = document.getElementById('new_prod_name').value.trim();
+            const name = normName(document.getElementById('new_prod_name').value);
             const offStock = parseInt(document.getElementById('new_prod_off_stock').value) || 0;
             const whStock = parseInt(document.getElementById('new_prod_wh_stock').value) || 0;
 
             if (!name) return alert('कृपया नाम दर्ज करें!');
-            if (appData.products.includes(name)) return alert('यह नाम पहले से मौजूद है!');
+            if (appData.products.some(p => normName(p) === name)) return alert('यह नाम पहले से मौजूद है! (स्पेस/स्पेलिंग जांच लें)');
+
+            const orphans = findOrphanRecords();
+            const revived = orphans[name];
 
             appData.products.push(name);
             appData.stock.office[name] = { opening: offStock, inward: 0, issued: 0 };
             appData.stock.warehouse[name] = { opening: whStock, inward: 0, delivered: 0 };
 
             saveData();
-            alert(`नया प्रोडक्ट "${name}" जोड़ा गया!`);
+            if (revived) {
+                alert('नया प्रोडक्ट "' + name + '" जोड़ा गया! इसी नाम का पुराना डेटा मिला और अपने-आप जुड़ गया - आवक: ' + revived.inward + ' बैग, जारी: ' + revived.issued + ' बैग, डिलीवर: ' + revived.delivered + ' बैग।');
+            } else {
+                alert('नया प्रोडक्ट "' + name + '" जोड़ा गया!');
+            }
             document.getElementById('new_prod_name').value = '';
             renderSettings(); renderDashboard();
         }
 
         function removeProduct(idx) {
             const pName = appData.products[idx];
-            if (confirm(`क्या आप "${pName}" को हटाना चाहते हैं?`)) {
+            // PERFECT-COUNT: डिलीट करने से पहले साफ-साफ बताना कि इस प्रोडक्ट के
+            // कितने बैग (आवक/जारी/डिलीवर) अब हिसाब से बाहर हो जाएंगे — ताकि कोई
+            // गलती से जरूरी स्टॉक न मिटा दे। पुराना डेटा फिर भी सुरक्षित रहता है,
+            // सिर्फ गिनती में शामिल नहीं होता — अगर वही नाम दोबारा जोड़ा जाए तो
+            // यह डेटा अपने-आप वापस जुड़ जाएगा (देखें addNewProduct)।
+            const inwTotal = (appData.inwardLogs || []).filter(l => normName(l.product) === normName(pName)).reduce((s,l) => s + (parseInt(l.qty)||0), 0);
+            let issTotal = 0, delTotal = 0;
+            (appData.vouchers || []).forEach(v => (v.items||[]).forEach(i => { if (normName(i.product) === normName(pName)) { issTotal += (parseInt(i.issuedQty)||0); delTotal += (parseInt(i.deliveredQty)||0); } }));
+            const warnMsg = 'क्या आप "' + pName + '" को हटाना चाहते हैं?\n\nहटाने के बाद इसका डेटा (आवक: ' + inwTotal + ' बैग, जारी: ' + issTotal + ' बैग, डिलीवर: ' + delTotal + ' बैग) डैशबोर्ड और रिपोर्ट की गिनती में नहीं आएगा।\n\n(डेटा डिलीट नहीं होता, बस गिनती से बाहर हो जाता है। यही नाम दोबारा जोड़ने पर यह अपने-आप वापस जुड़ जाएगा।)';
+            if (confirm(warnMsg)) {
                 appData.products.splice(idx, 1);
                 delete appData.stock.office[pName];
                 delete appData.stock.warehouse[pName];
